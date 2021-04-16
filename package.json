@@ -1,0 +1,84 @@
+{
+  "name": "@coinspace/cs-monero-wallet",
+  "version": "0.0.1",
+  "description": "Monero Wallet for Coin app",
+  "author": "Coin Crypto Wallet <support@coin.space> (https://coin.space/)",
+  "license": "MIT",
+  "main": "./index.cjs",
+  "exports": {
+    "import": "./index.js",
+    "require": "./index.cjs"
+  },
+  "type": "module",
+  "scripts": {
+    "build": "babel index.js --out-file-extension=.cjs --out-dir=./ && babel ./lib --out-file-extension=.cjs --out-dir=./lib",
+    "test": "mocha",
+    "lint": "eslint lib/*.js test/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CoinSpace/cs-monero-wallet.git"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.13.0",
+    "@babel/core": "^7.13.8",
+    "@babel/eslint-parser": "^7.13.8",
+    "@babel/plugin-proposal-class-properties": "^7.13.0",
+    "@babel/plugin-syntax-top-level-await": "^7.12.13",
+    "@babel/preset-env": "^7.13.8",
+    "babel-plugin-replace-import-extension": "^1.1.0",
+    "eslint": "^7.21.0",
+    "eslint-config-coinspace": "^1.1.1",
+    "mocha": "^8.3.2"
+  },
+  "babel": {
+    "presets": [
+      [
+        "@babel/env",
+        {
+          "targets": {
+            "node": "12"
+          }
+        }
+      ]
+    ],
+    "plugins": [
+      "@babel/plugin-syntax-top-level-await",
+      "@babel/plugin-proposal-class-properties",
+      [
+        "replace-import-extension",
+        {
+          "extMapping": {
+            ".js": ".cjs"
+          }
+        }
+      ]
+    ]
+  },
+  "eslintConfig": {
+    "extends": [
+      "coinspace"
+    ],
+    "env": {
+      "node": true
+    },
+    "parser": "@babel/eslint-parser",
+    "parserOptions": {
+      "sourceType": "module"
+    },
+    "overrides": [
+      {
+        "files": [
+          "*.test.js",
+          "test/*"
+        ],
+        "env": {
+          "mocha": true
+        }
+      }
+    ]
+  },
+  "dependencies": {
+    "monerolib": "0.0.3"
+  }
+}
