@@ -19,11 +19,16 @@
     "type": "git",
     "url": "https://github.com/CoinSpace/cs-monero-wallet.git"
   },
+  "dependencies": {
+    "hdkey": "^2.0.1",
+    "monerolib": "0.0.3"
+  },
   "devDependencies": {
     "@babel/cli": "^7.13.0",
     "@babel/core": "^7.13.8",
     "@babel/eslint-parser": "^7.13.8",
     "@babel/plugin-proposal-class-properties": "^7.13.0",
+    "@babel/plugin-proposal-private-methods": "^7.13.0",
     "@babel/plugin-syntax-top-level-await": "^7.12.13",
     "@babel/preset-env": "^7.13.8",
     "babel-plugin-replace-import-extension": "^1.1.0",
@@ -45,6 +50,7 @@
     "plugins": [
       "@babel/plugin-syntax-top-level-await",
       "@babel/plugin-proposal-class-properties",
+      "@babel/plugin-proposal-private-methods",
       [
         "replace-import-extension",
         {
@@ -77,8 +83,5 @@
         }
       }
     ]
-  },
-  "dependencies": {
-    "monerolib": "0.0.3"
   }
 }
