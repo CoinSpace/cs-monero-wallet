@@ -15,8 +15,9 @@
     "url": "https://github.com/CoinSpace/cs-monero-wallet.git"
   },
   "dependencies": {
+    "bn.js": "^4.12.0",
     "hdkey": "^2.0.1",
-    "monerolib": "0.0.4"
+    "monerolib": "0.0.6"
   },
   "devDependencies": {
     "@babel/core": "^7.13.16",
