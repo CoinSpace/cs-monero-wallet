@@ -285,6 +285,11 @@ export default class MoneroWallet {
     await this.#cache.set('txIds', this.#txIds);
   }
 
+  async loadTxs() {
+    // TODO implement
+    return { txs: [] };
+  }
+
   async createTx(to, value, priority) {
     // Priority may be 0,1,2,3
     if (typeof priority === 'string') priority = parseInt(priority);
