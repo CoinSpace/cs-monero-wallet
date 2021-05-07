@@ -23,6 +23,14 @@ export default class MoneroWallet {
     return 12;
   }
 
+  get networkName() {
+    return 'monero';
+  }
+  // TODO rename to symbol?
+  get denomination() {
+    return 'XMR';
+  }
+
   get addressTypes() {
     return ['address', 'subaddress'];
   }
@@ -50,6 +58,16 @@ export default class MoneroWallet {
     return this.#unspents
       .reduce((balance, item) => balance.add(new BN(item.amount, 10)), new BN(0))
       .toString(10);
+  }
+
+  // backward compatibility
+  getBalance() {
+    return this.balance;
+  }
+
+  getMaxAmount() {
+    // TODO implement
+    return '0';
   }
 
   constructor(options = {}) {
@@ -95,7 +113,7 @@ export default class MoneroWallet {
     // https://github.com/satoshilabs/slips/blob/master/slip-0044.md
     const base = hdkey.derive("m/44'/128'/0'");
     return new monerolib.Wallet({
-      seed: base.privateKey,
+      seed: Buffer.from(base.privateKey),
       nettype,
     });
   }
