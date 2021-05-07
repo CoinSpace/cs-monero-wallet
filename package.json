@@ -17,7 +17,8 @@
   "dependencies": {
     "bn.js": "^4.12.0",
     "hdkey": "^2.0.1",
-    "monerolib": "0.0.6"
+    "monerolib": "0.0.7",
+    "mymonero-core-js": "^17.0.0"
   },
   "devDependencies": {
     "@babel/core": "^7.13.16",
@@ -25,6 +26,7 @@
     "@babel/plugin-proposal-class-properties": "^7.13.0",
     "@babel/plugin-proposal-private-methods": "^7.13.0",
     "@babel/plugin-syntax-top-level-await": "^7.12.13",
+    "axios": "^0.21.1",
     "eslint": "^7.21.0",
     "eslint-config-coinspace": "^1.1.1",
     "mocha": "^8.3.2"

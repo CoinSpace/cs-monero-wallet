@@ -266,4 +266,97 @@ export default class MoneroWallet {
     this.#txs = this.#txs.concat(txs.map((tx) => this.#parseTx(tx)));
     await this.#cache.set('txIds', this.#txIds);
   }
+
+  async createTx(to, value, priority) {
+    // Priority may be 0,1,2,3
+    if (typeof priority === 'string') priority = parseInt(priority);
+
+    const mymonero = await import('mymonero-core-js');
+    const bridge = await mymonero.default.monero_utils_promise;
+
+    return new Promise((resolve, reject) => {
+      bridge.async__send_funds({
+        is_sweeping: false,
+        payment_id_string: undefined,
+        sending_amount: '' + value, // should be a string
+        sending_all: false,
+        from_address_string: this.getNextAddress(),
+        sec_viewKey_string: this.#wallet.secretViewKey.toString('hex'),
+        sec_spendKey_string: this.#wallet.secretSpendKey.toString('hex'),
+        pub_spendKey_string: this.#wallet.publicSpendKey.toString('hex'),
+        to_address_string: to,
+        priority,
+        unlock_time: 0, // unlock_time
+        nettype: 0, // MAINNET
+        get_unspent_outs_fn: async (req, cb) => {
+          const outputs = this.#unspents.map((item) => {
+            return {
+              amount: item.amount,
+              public_key: item.targetKey,
+              rct: item.outPk,
+              global_index: item.globalIndex,
+              index: item.index,
+              tx_pub_key: item.txPubKey,
+              // TODO figure out why the key images needed
+              spend_key_images: [],
+            };
+          });
+          // TODO request API for fee
+          const fee = 187610000;
+          cb(null, {
+            outputs,
+            per_kb_fee: fee,
+          });
+        },
+        get_random_outs_fn: async (req, cb) => {
+          const res = [];
+          for (const amount of req.amounts) {
+            const random = await this.#request({
+              baseURL: this.#apiNode,
+              url: 'api/v1/outputs/random',
+              params: {
+                count: req.count,
+              },
+              method: 'get',
+              seed: 'public',
+            });
+            res.push({
+              amount,
+              outputs: random.map((item) => {
+                return {
+                  public_key: item.targetKey,
+                  rct: item.outPk,
+                  global_index: item.globalIndex,
+                };
+              }),
+            });
+          }
+          cb(null, {
+            amount_outs: res,
+          });
+        },
+        status_update_fn: (status) => console.log('status:', status),
+        submit_raw_tx_fn: (res, cb) => {
+          // pass through
+          cb(null, {});
+        },
+        success_fn: (res) => resolve(res),
+        error_fn: (err) => reject(err),
+      });
+    });
+  }
+
+  async sendTx(tx) {
+    await this.#request({
+      baseURL: this.#apiNode,
+      url: 'api/v1/tx/send',
+      data: {
+        rawtx: tx.serialized_signed_tx,
+      },
+      method: 'post',
+      seed: 'public',
+    });
+    this.addTx(tx.tx_hash);
+    return tx;
+  }
 }
