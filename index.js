@@ -13,7 +13,7 @@ export default class MoneroWallet {
   #addressType;
   #isLocked;
   #txs = [];
-  #outputs = new Map();
+  #cachedKeyImages;
 
   get #txIds() {
     return this.#txs.map(item => item.txId);
@@ -50,8 +50,36 @@ export default class MoneroWallet {
     return this.#isLocked;
   }
 
+  get #outputs() {
+    const outputs = new Map();
+    for (const tx of this.#txs) {
+      for (const output of tx.outs) {
+        if (output.ours) {
+          outputs.set(`${tx.txId}:${output.index}`, {
+            ...output,
+            txId: tx.txId,
+            txPubKey: tx.txPubKey,
+          });
+        }
+      }
+      for (const input of tx.ins) {
+        for (const output of input.keyOutputs) {
+          if (output.ours && output.spent) {
+            const id = `${output.txId}:${output.index}`;
+            if (outputs.has(id)) {
+              outputs.get(id).spent = true;
+            } else {
+              outputs.set(`${tx.txId}:${output.index}`, output);
+            }
+          }
+        }
+      }
+    }
+    return Array.from(outputs.values());
+  }
+
   get #unspents() {
-    return Array.from(this.#outputs.values()).filter(item => item.spent !== true);
+    return this.#outputs.filter(item => item.spent !== true && item.height !== -1);
   }
 
   get balance() {
@@ -67,7 +95,7 @@ export default class MoneroWallet {
 
   getMaxAmount() {
     // TODO implement
-    return '0';
+    return this.balance;
   }
 
   constructor(options = {}) {
@@ -141,35 +169,16 @@ export default class MoneroWallet {
   }
 
   async load() {
+    this.#cachedKeyImages = (await this.#cache.get('keyImages')) || {};
+
     const txIds = (await this.#cache.get('txIds')) || [];
     const txs = await this.#loadTxs(txIds);
     this.#txs = txs.map((tx) => this.#parseTx(tx));
-
-    for (const tx of this.#txs) {
-      for (const output of tx.outs) {
-        if (output.ours) {
-          this.#outputs.set(`${tx.txId}:${output.index}`, {
-            ...output,
-            txId: tx.txId,
-            txPubKey: tx.txPubKey,
-          });
-        }
-      }
-      for (const input of tx.ins) {
-        for (const output of input.keyOutputs) {
-          if (output.ours && output.spent) {
-            const id = `${output.txId}:${output.index}`;
-            if (this.#outputs.has(id)) {
-              this.#outputs.get(id).spent = true;
-            } else {
-              this.#outputs.set(`${tx.txId}:${output.index}`, output);
-            }
-          }
-        }
-      }
-    }
-
     await this.#cache.set('txIds', this.#txIds);
+
+    if (!await this.#cache.get('createdAt')) {
+      await this.#cache.set('createdAt', Date.now());
+    }
   }
 
   async #loadTxs(txIds) {
@@ -233,9 +242,8 @@ export default class MoneroWallet {
               output.amount = rct.amount;
               output.ours = true;
             }
-            const secKey = monerolib.cryptoUtil.deriveSecretKey(derivation, output.index, address.secretSpendKey);
-            const keyImage = monerolib.cryptoUtil.generateKeyImage(pubKey, secKey);
-            if (keyImage.toString('hex') === input.keyImage) {
+            const keyImage = this.#generateKeyImage(derivation, output.index, address);
+            if (keyImage === input.keyImage) {
               // spent
               output.spent = true;
             }
@@ -248,6 +256,21 @@ export default class MoneroWallet {
       throw new Error('Not ours transaction');
     }
     return tx;
+  }
+
+  #generateKeyImage(derivation, index, address) {
+    const key = `${derivation.toString('hex')}-${index}-${address.toString()}`;
+    if (this.#cachedKeyImages[key]) {
+      return this.#cachedKeyImages[key];
+    } else if (!this.#wallet.isViewOnly) {
+      const pubKey = monerolib.cryptoUtil.derivePublicKey(derivation, index, address.publicSpendKey);
+      const secKey = monerolib.cryptoUtil.deriveSecretKey(derivation, index, address.secretSpendKey);
+      const keyImage = monerolib.cryptoUtil.generateKeyImage(pubKey, secKey);
+      this.#cachedKeyImages[key] = keyImage.toString('hex');
+      return this.#cachedKeyImages[key];
+    } else {
+      throw new Error('Unable to compute key image in view only mode');
+    }
   }
 
   publicKey() {
@@ -283,6 +306,7 @@ export default class MoneroWallet {
     const txs = await this.#loadTxs(txIds);
     this.#txs = this.#txs.concat(txs.map((tx) => this.#parseTx(tx)));
     await this.#cache.set('txIds', this.#txIds);
+    await this.#cache.set('keyImages', this.#cachedKeyImages);
   }
 
   async loadTxs() {
@@ -290,7 +314,7 @@ export default class MoneroWallet {
     return { txs: [] };
   }
 
-  async createTx(to, value, priority) {
+  async createTx(to, value, priority=3) {
     // Priority may be 0,1,2,3
     if (typeof priority === 'string') priority = parseInt(priority);
 
@@ -379,7 +403,7 @@ export default class MoneroWallet {
       method: 'post',
       seed: 'public',
     });
-    this.addTx(tx.tx_hash);
+    await this.addTx(tx.tx_hash);
     return tx;
   }
 }
