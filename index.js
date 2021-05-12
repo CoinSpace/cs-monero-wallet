@@ -318,7 +318,7 @@ export default class MoneroWallet {
     // Priority may be 0,1,2,3
     if (typeof priority === 'string') priority = parseInt(priority);
 
-    const mymonero = await import('mymonero-core-js');
+    const mymonero = await import('@coinspace/monero-core-js');
     const bridge = await mymonero.default.monero_utils_promise;
 
     return new Promise((resolve, reject) => {
