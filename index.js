@@ -14,6 +14,24 @@ export default class MoneroWallet {
   #isLocked;
   #txs = [];
   #cachedKeyImages;
+  #maxTxInputs;
+  // https://github.com/monero-project/monero/blob/v0.17.2.0/src/cryptonote_config.h#L208
+  #dustThreshold = new BN('2000000000', 10);
+  #baseFee;
+  #feeQuantizationMask;
+  #csFee;
+  #csMinFee;
+  #csMaxFee;
+  #csFeeAddresses;
+  #csFeeOff = false;
+  #feeRates = [{
+    name: 'default',
+    default: true,
+    feeMultiplier: 1,
+  }, {
+    name: 'fastest',
+    feeMultiplier: 25,
+  }];
 
   get #txIds() {
     return this.#txs.map(item => item.txId);
@@ -50,6 +68,16 @@ export default class MoneroWallet {
     return this.#isLocked;
   }
 
+  get feeRates() {
+    // only names
+    return this.#feeRates.map((item) => {
+      return {
+        name: item.name,
+        default: item.default === true,
+      };
+    });
+  }
+
   get #outputs() {
     const outputs = new Map();
     for (const tx of this.#txs) {
@@ -79,23 +107,19 @@ export default class MoneroWallet {
   }
 
   get #unspents() {
-    return this.#outputs.filter(item => item.spent !== true && item.height !== -1);
+    return this.#outputs.filter(item => item.spent !== true);
+  }
+
+  get #unspentsForTx() {
+    return this.#outputs.filter(item => item.spent !== true && item.height !== -1)
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, this.#maxTxInputs);
   }
 
   get balance() {
     return this.#unspents
       .reduce((balance, item) => balance.add(new BN(item.amount, 10)), new BN(0))
       .toString(10);
-  }
-
-  // backward compatibility
-  getBalance() {
-    return this.balance;
-  }
-
-  getMaxAmount() {
-    // TODO implement
-    return this.balance;
   }
 
   constructor(options = {}) {
@@ -118,6 +142,8 @@ export default class MoneroWallet {
       throw new TypeError('apiWeb should be passed');
     }
     this.#apiWeb = options.apiWeb;
+
+    this.#maxTxInputs = options.maxTxInputs || 292;
 
     const nettype = options.useTestNetwork ? 'regtest' : 'mainnet';
 
@@ -178,6 +204,42 @@ export default class MoneroWallet {
 
     if (!await this.#cache.get('createdAt')) {
       await this.#cache.set('createdAt', Date.now());
+    }
+
+    await this.#loadFee();
+    await this.#loadCsFee();
+  }
+
+  async #loadFee() {
+    const result = await this.#request({
+      baseURL: this.#apiNode,
+      url: 'api/v1/estimatefee',
+      method: 'get',
+      seed: 'public',
+    });
+    this.#baseFee = new BN(result.fee, 10).toString(10);
+    this.#feeQuantizationMask = new BN(result.quantization_mask, 10).toString(10);
+  }
+
+  async #loadCsFee() {
+    try {
+      const result = await this.#request({
+        baseURL: this.#apiWeb,
+        url: 'api/v2/csfee',
+        params: {
+          crypto: 'monero',
+        },
+        method: 'get',
+        seed: 'public',
+      });
+      this.#csFee = result.fee;
+      this.#csMinFee = new BN(result.minFee, 10);
+      this.#csMaxFee = new BN(result.maxFee, 10);
+      this.#csFeeAddresses = result.addresses;
+      this.#csFeeOff = result.addresses.length === 0
+        || result.whitelist.includes(this.#getAddress('address'));
+    } catch (err) {
+      console.error(err);
     }
   }
 
@@ -304,7 +366,8 @@ export default class MoneroWallet {
     // check if already added
     txIds = txIds.filter(txId => !this.#txIds.includes(txId));
     const txs = await this.#loadTxs(txIds);
-    this.#txs = this.#txs.concat(txs.map((tx) => this.#parseTx(tx)));
+    this.#txs = this.#txs.concat(txs.map((tx) => this.#parseTx(tx)))
+      .sort((a, b) => a.time - b.time);
     await this.#cache.set('txIds', this.#txIds);
     await this.#cache.set('keyImages', this.#cachedKeyImages);
   }
@@ -313,6 +376,111 @@ export default class MoneroWallet {
     // TODO implement
     return { txs: [] };
   }
+
+  #calculateCsFee(value) {
+    if (this.#csFeeOff) {
+      return new BN(0);
+    }
+    let fee = value.muln(this.#csFee);
+    fee = BN.max(fee, this.#csMinFee);
+    fee = BN.min(fee, this.#csMaxFee);
+    if (fee.lt(this.#dustThreshold)) {
+      return new BN(0);
+    }
+    return fee;
+  }
+
+  // value = value + csFee
+  #reverseCsFee(value) {
+    if (this.#csFeeOff) {
+      return new BN(0);
+    }
+    let fee = value.muln(this.#csFee / (1 + this.#csFee));
+    fee = BN.max(fee, this.#csMinFee);
+    fee = BN.min(fee, this.#csMaxFee);
+    if (fee.lt(this.#dustThreshold)) {
+      return new BN(0);
+    }
+    return fee;
+  }
+
+  #calculateMaxAmount(feeRate) {
+    // TODO fee may be a number ?
+    const utxos = this.#unspentsForTx;
+    const available = utxos
+      .reduce((available, item) => available.add(new BN(item.amount, 10)), new BN(0));
+    // 2 outputs without change
+    const fee = new BN(monerolib.tx.estimateFee(utxos.length, 10, 2, 44,
+      this.#baseFee, feeRate.feeMultiplier, this.#feeQuantizationMask), 10);
+    if (available.lte(fee)) {
+      return new BN(0);
+    }
+    const csFee = this.#reverseCsFee(available.sub(fee));
+    const maxAmount = available.sub(fee).sub(csFee);
+    if (maxAmount.lten(0)) {
+      return new BN(0);
+    }
+    return maxAmount;
+  }
+
+  estimateFees(value) {
+    return this.#feeRates.map((feeRate) => {
+      const info = this.#estimateFee(value, feeRate);
+      return {
+        name: feeRate.name,
+        default: feeRate.default === true,
+        estimate: info.estimate,
+        maxAmount: info.maxAmount,
+      };
+    });
+  }
+
+  #estimateFee(value, feeRate) {
+    let amount = new BN(value, 10);
+    const utxos = this.#unspentsForTx;
+
+    const maxAmount = this.#calculateMaxAmount(feeRate);
+    if (amount.gt(maxAmount)) {
+      amount = maxAmount;
+    }
+
+    const csFee = this.#calculateCsFee(amount);
+    const accum = new BN(0);
+    let ins = 0;
+    let estimate;
+
+    const success = utxos.some((item) => {
+      ins++;
+      accum.iadd(new BN(item.amount, 10));
+      if (accum.lte(amount)) {
+        return false;
+      }
+      // fee without change: 2 outputs
+      const feeWithoutChange = monerolib.tx.estimateFee(ins, 10, 2, 44,
+        this.#baseFee, feeRate.feeMultiplier, this.#feeQuantizationMask);
+      estimate = csFee.add(new BN(feeWithoutChange, 10));
+      const totalWithoutChange = amount.add(estimate);
+      if (totalWithoutChange.lte(accum) && accum.sub(totalWithoutChange).lte(this.#dustThreshold)) {
+        return true;
+      }
+      // fee with change: 3 outputs
+      const feeWithChange = monerolib.tx.estimateFee(ins, 10, 3, 44,
+        this.#baseFee, feeRate.feeMultiplier, this.#feeQuantizationMask);
+      estimate = csFee.add(new BN(feeWithChange, 10));
+      const totalWithChange = amount.add(estimate);
+      if (totalWithChange.lte(accum)) {
+        return true;
+      }
+    });
+    if (success) {
+      return {
+        estimate,
+        maxAmount,
+      };
+    }
+    throw new Error(`fee could not be estimated for value ${value}`);
+  }
+
 
   async createTx(to, value, priority=3) {
     // Priority may be 0,1,2,3
@@ -336,7 +504,7 @@ export default class MoneroWallet {
         unlock_time: 0, // unlock_time
         nettype: 0, // MAINNET
         get_unspent_outs_fn: async (req, cb) => {
-          const outputs = this.#unspents.map((item) => {
+          const outputs = this.#unspentsForTx.map((item) => {
             return {
               amount: item.amount,
               public_key: item.targetKey,
