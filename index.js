@@ -394,8 +394,8 @@ export default class MoneroWallet {
     const utxos = this.#unspentsForTx;
     const available = utxos
       .reduce((available, item) => available.add(new BN(item.amount, 10)), new BN(0));
-    // 2 outputs without change
-    const fee = new BN(monerolib.tx.estimateFee(utxos.length, 10, 2, 44,
+    // 3 outputs with change
+    const fee = new BN(monerolib.tx.estimateFee(utxos.length, 10, 3, 44,
       this.#baseFee, feeRate.feeMultiplier, this.#feeQuantizationMask), 10);
     if (available.lte(fee)) {
       return new BN(0);
@@ -432,36 +432,24 @@ export default class MoneroWallet {
     const csFee = this.#calculateCsFee(amount);
     const accum = new BN(0);
     let ins = 0;
-    let estimate;
 
-    const success = utxos.some((item) => {
+    for (const item of utxos) {
       ins++;
       accum.iadd(new BN(item.amount, 10));
       if (accum.lte(amount)) {
-        return false;
-      }
-      // fee without change: 2 outputs
-      const feeWithoutChange = monerolib.tx.estimateFee(ins, 10, 2, 44,
-        this.#baseFee, feeRate.feeMultiplier, this.#feeQuantizationMask);
-      estimate = csFee.add(new BN(feeWithoutChange, 10));
-      const totalWithoutChange = amount.add(estimate);
-      if (totalWithoutChange.lte(accum) && accum.sub(totalWithoutChange).lte(this.#dustThreshold)) {
-        return true;
+        continue;
       }
       // fee with change: 3 outputs
-      const feeWithChange = monerolib.tx.estimateFee(ins, 10, 3, 44,
+      const fee = monerolib.tx.estimateFee(ins, 10, 3, 44,
         this.#baseFee, feeRate.feeMultiplier, this.#feeQuantizationMask);
-      estimate = csFee.add(new BN(feeWithChange, 10));
-      const totalWithChange = amount.add(estimate);
-      if (totalWithChange.lte(accum)) {
-        return true;
+      const estimate = csFee.add(new BN(fee, 10));
+      const total = amount.add(estimate);
+      if (total.lte(accum)) {
+        return {
+          estimate,
+          maxAmount,
+        };
       }
-    });
-    if (success) {
-      return {
-        estimate,
-        maxAmount,
-      };
     }
     throw new Error(`fee could not be estimated for value ${value}`);
   }
