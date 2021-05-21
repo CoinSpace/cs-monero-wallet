@@ -13,6 +13,7 @@ export default class MoneroWallet {
   #addressType;
   #isLocked;
   #txs = [];
+  #outputs = new Map();
   #cachedKeyImages;
   #maxTxInputs;
   // https://github.com/monero-project/monero/blob/v0.17.2.0/src/cryptonote_config.h#L208
@@ -78,40 +79,12 @@ export default class MoneroWallet {
     });
   }
 
-  get #outputs() {
-    const outputs = new Map();
-    for (const tx of this.#txs) {
-      for (const output of tx.outs) {
-        if (output.ours) {
-          outputs.set(`${tx.txId}:${output.index}`, {
-            ...output,
-            txId: tx.txId,
-            txPubKey: tx.txPubKey,
-          });
-        }
-      }
-      for (const input of tx.ins) {
-        for (const output of input.keyOutputs) {
-          if (output.ours && output.spent) {
-            const id = `${output.txId}:${output.index}`;
-            if (outputs.has(id)) {
-              outputs.get(id).spent = true;
-            } else {
-              outputs.set(`${tx.txId}:${output.index}`, output);
-            }
-          }
-        }
-      }
-    }
-    return Array.from(outputs.values());
-  }
-
   get #unspents() {
-    return this.#outputs.filter(item => item.spent !== true);
+    return Array.from(this.#outputs.values()).filter(item => item.spent !== true);
   }
 
   get #unspentsForTx() {
-    return this.#outputs.filter(item => item.spent !== true && item.height !== -1)
+    return Array.from(this.#outputs.values()).filter(item => item.spent !== true && item.height !== -1)
       .sort((a, b) => b.amount - a.amount)
       .slice(0, this.#maxTxInputs);
   }
@@ -198,8 +171,10 @@ export default class MoneroWallet {
     this.#cachedKeyImages = (await this.#cache.get('keyImages')) || {};
 
     const txIds = (await this.#cache.get('txIds')) || [];
-    const txs = await this.#loadTxs(txIds);
-    this.#txs = txs.map((tx) => this.#parseTx(tx));
+    this.#txs = await this.#loadTxs(txIds);
+    for (const tx of this.#txs) {
+      this.#processTx(tx);
+    }
     await this.#cache.set('txIds', this.#txIds);
 
     if (!await this.#cache.get('createdAt')) {
@@ -257,42 +232,27 @@ export default class MoneroWallet {
     return txs.flat().sort((a, b) => a.time - b.time);
   }
 
-  #parseTx(tx) {
-    let valid = false;
-    for (const output of tx.outs) {
-      const derivation = monerolib.cryptoUtil.generateKeyDerivation(
-        Buffer.from(tx.txPubKey, 'hex'),
-        this.#wallet.secretViewKey
-      );
-      for (const address of this.#getAllAddresses()) {
-        const pubKey = monerolib.cryptoUtil.derivePublicKey(derivation, output.index, address.publicSpendKey);
-        if (pubKey.toString('hex') === output.targetKey) {
-          valid = true;
-          if (output.rctType !== monerolib.ringct.RCTTypes.Null) {
-            const rct = monerolib.ringct.decodeRct(
-              { amount: output.ecdhInfoAmount, mask: output.ecdhInfoMask },
-              output.outPk,
-              output.rctType,
-              output.index,
-              derivation
-            );
-            output.amount = rct.amount;
-            output.ours = true;
-          }
-        }
-      }
-    }
+  #processTx(tx) {
+    const mainDerivation = monerolib.cryptoUtil.generateKeyDerivation(
+      Buffer.from(tx.txPubKey, 'hex'),
+      this.#wallet.secretViewKey
+    );
 
-    for (const input of tx.ins) {
-      for (const output of input.keyOutputs) {
-        const derivation = monerolib.cryptoUtil.generateKeyDerivation(
-          Buffer.from(output.txPubKey, 'hex'),
+    for (const output of tx.outs) {
+      const derivations = [mainDerivation];
+
+      if (output.additionalPubKey) {
+        // additional derivation
+        derivations.push(monerolib.cryptoUtil.generateKeyDerivation(
+          Buffer.from(output.additionalPubKey, 'hex'),
           this.#wallet.secretViewKey
-        );
-        for (const address of this.#getAllAddresses()) {
+        ));
+      }
+
+      for (const address of this.#getAllAddresses()) {
+        for (const derivation of derivations) {
           const pubKey = monerolib.cryptoUtil.derivePublicKey(derivation, output.index, address.publicSpendKey);
           if (pubKey.toString('hex') === output.targetKey) {
-            valid = true;
             if (output.rctType !== monerolib.ringct.RCTTypes.Null) {
               const rct = monerolib.ringct.decodeRct(
                 { amount: output.ecdhInfoAmount, mask: output.ecdhInfoMask },
@@ -303,21 +263,42 @@ export default class MoneroWallet {
               );
               output.amount = rct.amount;
               output.ours = true;
+              tx.ours = true;
+
+              this.#outputs.set(`${tx.txId}:${output.targetKey}`, {
+                txId: tx.txId,
+                derivation,
+                address: address.index,
+                ...output,
+              });
             }
-            const keyImage = this.#generateKeyImage(derivation, output.index, address);
-            if (keyImage === input.keyImage) {
-              // spent
-              output.spent = true;
-            }
+          }
+        }
+        if (output.ours) {
+          break;
+        }
+      }
+      if (output.ours) {
+        break;
+      }
+    }
+
+    for (const input of tx.ins) {
+      for (const keyOutput of input.keyOutputs) {
+        if (this.#outputs.has(`${keyOutput.txId}:${keyOutput.targetKey}`)) {
+          const output = this.#outputs.get(`${keyOutput.txId}:${keyOutput.targetKey}`);
+          const address = this.#wallet.getSubaddress(output.address.major, output.address.minor);
+          const keyImage = this.#generateKeyImage(output.derivation, output.index, address);
+          if (keyImage === input.keyImage) {
+            // spent
+            output.spent = true;
+            tx.ours = true;
           }
         }
       }
     }
 
-    if (!valid) {
-      throw new Error('Not ours transaction');
-    }
-    return tx;
+    return tx.ours === true;
   }
 
   #generateKeyImage(derivation, index, address) {
@@ -359,14 +340,18 @@ export default class MoneroWallet {
   }
 
   async addTx(txId) {
-    await this.addTxs([txId]);
-  }
-
-  async addTxs(txIds) {
     // check if already added
-    txIds = txIds.filter(txId => !this.#txIds.includes(txId));
-    const txs = await this.#loadTxs(txIds);
-    this.#txs = this.#txs.concat(txs.map((tx) => this.#parseTx(tx)))
+    if (this.#txIds.includes(txId)) {
+      return;
+    }
+    const [tx] = await this.#loadTxs([txId]);
+    if (!tx) {
+      throw new TypeError('Unknown transaction');
+    }
+    if (!this.#processTx(tx)) {
+      throw new TypeError('Not ours transaction');
+    }
+    this.#txs = this.#txs.push(tx)
       .sort((a, b) => a.time - b.time);
     await this.#cache.set('txIds', this.#txIds);
     await this.#cache.set('keyImages', this.#cachedKeyImages);
