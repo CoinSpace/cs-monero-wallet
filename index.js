@@ -16,6 +16,10 @@ export default class MoneroWallet {
   #outputs = new Map();
   #cachedKeyImages;
   #maxTxInputs;
+  #minConf = 10;
+  #minConfCoinbase = 60;
+  #txsPerPage = 5;
+  #txsCursor = 0;
   // https://github.com/monero-project/monero/blob/v0.17.2.0/src/cryptonote_config.h#L208
   #dustThreshold = new BN('2000000000', 10);
   #baseFee;
@@ -80,11 +84,13 @@ export default class MoneroWallet {
   }
 
   get #unspents() {
-    return Array.from(this.#outputs.values()).filter(item => item.spent !== true);
+    return Array.from(this.#outputs.values())
+      .filter(item => item.spent !== true);
   }
 
   get #unspentsForTx() {
-    return Array.from(this.#outputs.values()).filter(item => item.spent !== true && item.height !== -1)
+    return Array.from(this.#outputs.values())
+      .filter(item => item.spent !== true && item.confirmed === true)
       .sort((a, b) => b.amount - a.amount)
       .slice(0, this.#maxTxInputs);
   }
@@ -233,6 +239,13 @@ export default class MoneroWallet {
   }
 
   #processTx(tx) {
+    const outputValue = new BN(0);
+    const inputValue = new BN(0);
+
+    tx.confirmed = tx.coinbase
+      ? tx.confirmations >= this.#minConfCoinbase
+      : tx.confirmations >= this.#minConf;
+
     const mainDerivation = monerolib.cryptoUtil.generateKeyDerivation(
       Buffer.from(tx.txPubKey, 'hex'),
       this.#wallet.secretViewKey
@@ -263,12 +276,15 @@ export default class MoneroWallet {
               );
               output.amount = rct.amount;
               output.ours = true;
+              output.address = address.toString();
+              output.addressIndex = address.index,
               tx.ours = true;
+              outputValue.iadd(new BN(output.amount, 10));
 
               this.#outputs.set(`${tx.txId}:${output.targetKey}`, {
                 txId: tx.txId,
+                confirmed: tx.confirmed,
                 derivation,
-                address: address.index,
                 ...output,
               });
             }
@@ -284,19 +300,35 @@ export default class MoneroWallet {
     }
 
     for (const input of tx.ins) {
+      input.amount = '0';
       for (const keyOutput of input.keyOutputs) {
         if (this.#outputs.has(`${keyOutput.txId}:${keyOutput.targetKey}`)) {
           const output = this.#outputs.get(`${keyOutput.txId}:${keyOutput.targetKey}`);
-          const address = this.#wallet.getSubaddress(output.address.major, output.address.minor);
+          const address = this.#wallet.getSubaddress(output.addressIndex.major, output.addressIndex.minor);
           const keyImage = this.#generateKeyImage(output.derivation, output.index, address);
           if (keyImage === input.keyImage) {
             // spent
             output.spent = true;
             tx.ours = true;
+            // for tx history
+            input.address = output.address;
+            input.amount = output.amount;
+            inputValue.iadd(new BN(output.amount, 10));
           }
         }
       }
     }
+
+    const minerFee = new BN(tx.fee, 10);
+    const csFee = tx.csfee ? new BN(tx.csfee, 10) : new BN(0);
+    tx.csFee = csFee.toString(10);
+    tx.minerFee = minerFee.toString(10);
+    tx.fee = minerFee.add(csFee).toString(10);
+
+    const amount = outputValue.sub(inputValue);
+    tx.amount = amount.toString(10);
+    tx.isIncoming = amount.gtn(0);
+    tx.timestamp = tx.time * 1000;
 
     return tx.ours === true;
   }
@@ -358,8 +390,15 @@ export default class MoneroWallet {
   }
 
   async loadTxs() {
-    // TODO implement
-    return { txs: [] };
+    const txs = Array.from(this.#txs)
+      .reverse()
+      .slice(this.#txsCursor, this.#txsCursor + this.#txsPerPage);
+    this.#txsCursor = this.#txsCursor + this.#txsPerPage;
+    const hasMoreTxs = this.#txsCursor < this.#txs.length;
+    return {
+      txs,
+      hasMoreTxs,
+    };
   }
 
   #calculateCsFee(value) {
@@ -430,6 +469,18 @@ export default class MoneroWallet {
     }
 
     const csFee = this.#calculateCsFee(amount);
+
+    if (utxos.length === 0) {
+      // dummy 1 input
+      const fee = monerolib.tx.estimateFee(1, 10, 3, 44,
+        this.#baseFee, feeRate.feeMultiplier, this.#feeQuantizationMask);
+      const estimate = csFee.add(new BN(fee, 10));
+      return {
+        estimate,
+        maxAmount,
+      };
+    }
+
     const accum = new BN(0);
     let ins = 0;
 
