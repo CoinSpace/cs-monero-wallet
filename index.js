@@ -6,7 +6,7 @@ const TXIDS_CHUNK = 50;
 
 export default class MoneroWallet {
   #wallet;
-  #cache;
+  #storage;
   #request;
   #apiNode;
   #apiWeb;
@@ -105,10 +105,10 @@ export default class MoneroWallet {
   }
 
   constructor(options = {}) {
-    if (!options.cache) {
-      throw new TypeError('cache should be passed');
+    if (!options.storage) {
+      throw new TypeError('storage should be passed');
     }
-    this.#cache = options.cache;
+    this.#storage = options.storage;
 
     if (!options.request) {
       throw new TypeError('request should be passed');
@@ -177,17 +177,17 @@ export default class MoneroWallet {
   }
 
   async load() {
-    this.#cachedKeyImages = (await this.#cache.get('keyImages')) || {};
+    this.#cachedKeyImages = (await this.#storage.get('keyImages')) || {};
 
-    const txIds = (await this.#cache.get('txIds')) || [];
+    const txIds = (await this.#storage.get('txIds')) || [];
     this.#txs = await this.#loadTxs(txIds);
     for (const tx of this.#txs) {
       this.#processTx(tx);
     }
-    await this.#cache.set('txIds', this.#txIds);
+    await this.#storage.set('txIds', this.#txIds);
 
-    if (!await this.#cache.get('createdAt')) {
-      await this.#cache.set('createdAt', Date.now());
+    if (!await this.#storage.get('createdAt')) {
+      await this.#storage.set('createdAt', Date.now());
     }
 
     await this.#loadFee();
@@ -392,8 +392,8 @@ export default class MoneroWallet {
     }
     this.#txs = this.#txs.push(tx)
       .sort((a, b) => a.time - b.time);
-    await this.#cache.set('txIds', this.#txIds);
-    await this.#cache.set('keyImages', this.#cachedKeyImages);
+    await this.#storage.set('txIds', this.#txIds);
+    await this.#storage.set('keyImages', this.#cachedKeyImages);
   }
 
   async loadTxs() {
