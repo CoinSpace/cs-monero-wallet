@@ -95,10 +95,13 @@ export default class MoneroWallet {
       .slice(0, this.#maxTxInputs);
   }
 
-  get balance() {
+  get #balance() {
     return this.#unspents
-      .reduce((balance, item) => balance.add(new BN(item.amount, 10)), new BN(0))
-      .toString(10);
+      .reduce((balance, item) => balance.add(new BN(item.amount, 10)), new BN(0));
+  }
+
+  get balance() {
+    return this.#balance.toString(10);
   }
 
   constructor(options = {}) {
@@ -371,6 +374,10 @@ export default class MoneroWallet {
     return this.#getAddress(this.#addressType).toString();
   }
 
+  #getRandomAddress() {
+    return '888tNkZrPN6JsEgekjMnABU4TBzc2Dt29EPAvkRxbANsAnjyPbb3iQ1YBRk1UXcdRsiKc9dhwMVgN5S9cQUiyoogDavup3H';
+  }
+
   async addTx(txId) {
     // check if already added
     if (this.#txIds.includes(txId)) {
@@ -441,151 +448,146 @@ export default class MoneroWallet {
     }
     const csFee = this.#reverseCsFee(available.sub(fee));
     const maxAmount = available.sub(fee).sub(csFee);
-    if (maxAmount.lten(0)) {
+    if (maxAmount.ltn(0)) {
       return new BN(0);
     }
     return maxAmount;
   }
 
   estimateFees(value) {
+    const amount = new BN(value, 10);
     return this.#feeRates.map((feeRate) => {
-      const info = this.#estimateFee(value, feeRate);
+      const info = this.#estimateFee(amount, feeRate);
       return {
         name: feeRate.name,
         default: feeRate.default === true,
-        estimate: info.estimate,
-        maxAmount: info.maxAmount,
+        estimate: info.estimate.toString(10),
+        maxAmount: info.maxAmount.toString(10),
       };
     });
   }
 
   #estimateFee(value, feeRate) {
-    let amount = new BN(value, 10);
     const utxos = this.#unspentsForTx;
 
     const maxAmount = this.#calculateMaxAmount(feeRate);
-    if (amount.gt(maxAmount)) {
-      amount = maxAmount;
+    if (value.gt(maxAmount)) {
+      value = maxAmount;
     }
 
-    const csFee = this.#calculateCsFee(amount);
+    const csFee = this.#calculateCsFee(value);
 
     if (utxos.length === 0) {
       // dummy 1 input
-      const fee = monerolib.tx.estimateFee(1, 10, 3, 44,
-        this.#baseFee, feeRate.feeMultiplier, this.#feeQuantizationMask);
-      const estimate = csFee.add(new BN(fee, 10));
+      const fee = new BN(monerolib.tx.estimateFee(1, 10, 3, 44,
+        this.#baseFee, feeRate.feeMultiplier, this.#feeQuantizationMask), 10);
+      const estimate = csFee.add(fee, 10);
       return {
+        fee,
+        csFee,
+        change: new BN(0),
         estimate,
         maxAmount,
+        sources: [],
       };
     }
 
     const accum = new BN(0);
+    const sources = [];
     let ins = 0;
 
     for (const item of utxos) {
       ins++;
       accum.iadd(new BN(item.amount, 10));
-      if (accum.lte(amount)) {
+      sources.push(item);
+      if (accum.lte(value)) {
         continue;
       }
       // fee with change: 3 outputs
-      const fee = monerolib.tx.estimateFee(ins, 10, 3, 44,
-        this.#baseFee, feeRate.feeMultiplier, this.#feeQuantizationMask);
-      const estimate = csFee.add(new BN(fee, 10));
-      const total = amount.add(estimate);
+      const fee = new BN(monerolib.tx.estimateFee(ins, 10, 3, 44,
+        this.#baseFee, feeRate.feeMultiplier, this.#feeQuantizationMask), 10);
+      const estimate = csFee.add(fee);
+      const total = value.add(estimate);
+      let change = accum.sub(total);
+      if (change.lte(this.#dustThreshold)) {
+        if (csFee.isZero()) {
+          fee.add(change);
+        } else {
+          csFee.add(change);
+        }
+        estimate.add(change);
+        change = new BN(0);
+      }
       if (total.lte(accum)) {
         return {
+          fee,
+          csFee,
+          change,
           estimate,
           maxAmount,
+          sources,
         };
       }
     }
     throw new Error(`fee could not be estimated for value ${value}`);
   }
 
+  #parseAddress(str) {
+    try {
+      return this.#wallet.addressFromString(str);
+    } catch (err) {
+      console.error(err);
+      throw new Error('Invalid address');
+    }
+  }
 
-  async createTx(to, value, priority=3) {
-    // Priority may be 0,1,2,3
-    if (typeof priority === 'string') priority = parseInt(priority);
+  async createTx(to, value, feeName) {
+    const addressTo = this.#parseAddress(to);
+    for (const address of this.#getAllAddresses()) {
+      if (address.toString() === addressTo.toString()) {
+        throw new Error('Destination address equal source address');
+      }
+    }
 
-    const mymonero = await import('@coinspace/monero-core-js');
-    const bridge = await mymonero.default.monero_utils_promise;
+    const amount = new BN(value, 10);
+    if (amount.lte(this.#dustThreshold)) {
+      const error = new Error('Invalid value');
+      error.dustThreshold = this.#dustThreshold.toString(10);
+      throw error;
+    }
 
-    return new Promise((resolve, reject) => {
-      bridge.async__send_funds({
-        is_sweeping: false,
-        payment_id_string: undefined,
-        sending_amount: '' + value, // should be a string
-        sending_all: false,
-        from_address_string: this.getNextAddress(),
-        sec_viewKey_string: this.#wallet.secretViewKey.toString('hex'),
-        sec_spendKey_string: this.#wallet.secretSpendKey.toString('hex'),
-        pub_spendKey_string: this.#wallet.publicSpendKey.toString('hex'),
-        to_address_string: to,
-        priority,
-        unlock_time: 0, // unlock_time
-        nettype: 0, // MAINNET
-        get_unspent_outs_fn: async (req, cb) => {
-          const outputs = this.#unspentsForTx.map((item) => {
-            return {
-              amount: item.amount,
-              public_key: item.targetKey,
-              rct: item.outPk,
-              global_index: item.globalIndex,
-              index: item.index,
-              tx_pub_key: item.txPubKey,
-              // TODO figure out why the key images needed
-              spend_key_images: [],
-            };
-          });
-          // TODO request API for fee
-          const fee = 187610000;
-          cb(null, {
-            outputs,
-            per_kb_fee: fee,
-          });
-        },
-        get_random_outs_fn: async (req, cb) => {
-          const res = [];
-          for (const amount of req.amounts) {
-            const random = await this.#request({
-              baseURL: this.#apiNode,
-              url: 'api/v1/outputs/random',
-              params: {
-                count: req.count,
-              },
-              method: 'get',
-              seed: 'public',
-            });
-            res.push({
-              amount,
-              outputs: random.map((item) => {
-                return {
-                  public_key: item.targetKey,
-                  rct: item.outPk,
-                  global_index: item.globalIndex,
-                };
-              }),
-            });
-          }
-          cb(null, {
-            amount_outs: res,
-          });
-        },
-        status_update_fn: (status) => console.log('status:', status),
-        submit_raw_tx_fn: (res, cb) => {
-          // pass through
-          cb(null, {});
-        },
-        success_fn: (res) => resolve(res),
-        error_fn: (err) => reject(err),
-      });
-    });
+    const feeRate = this.#feeRates.find(item => item.name === feeName);
+
+    const { csFee, change, estimate, maxAmount, sources } = this.#estimateFee(amount, feeRate);
+
+    if (amount.gt(maxAmount)) {
+      const error = new Error('Insufficient funds');
+      if (amount.lt(this.#balance)) {
+        error.details = 'Additional funds confirmation pending';
+      }
+      throw error;
+    }
+
+    const destinations = [{
+      amount: amount.toString(10),
+      address: addressTo.toString(),
+    }, {
+      amount: change.toString(10),
+      address: change.gtn(0) ? this.#getAddress('address').toString() : this.#getRandomAddress(),
+    }, {
+      amount: csFee.toString(10),
+      address: csFee.gtn(0) ? this.#csFeeAddresses[0] : this.#getRandomAddress(),
+    }];
+
+    return {
+      fee: estimate.toString(10),
+      sources,
+      destinations,
+    };
   }
 
   async sendTx(tx) {
+    // TODO create tx from params
     await this.#request({
       baseURL: this.#apiNode,
       url: 'api/v1/tx/send',

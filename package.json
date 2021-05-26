@@ -18,7 +18,7 @@
     "@coinspace/monero-core-js": "0.0.1",
     "bn.js": "^4.12.0",
     "hdkey": "^2.0.1",
-    "monerolib": "0.0.11"
+    "monerolib": "0.0.12"
   },
   "devDependencies": {
     "@babel/core": "^7.13.16",
