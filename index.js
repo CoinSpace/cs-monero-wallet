@@ -9,6 +9,7 @@ export default class MoneroWallet {
   #wallet;
   #storage;
   #request;
+  #wasmPath = 'node_modules/@coinspace/monero-core-js/build/MoneroCoreJS.wasm';
   #apiNode;
   #apiWeb;
   #addressType;
@@ -115,6 +116,10 @@ export default class MoneroWallet {
       throw new TypeError('request should be passed');
     }
     this.#request = options.request;
+
+    if (options.wasm) {
+      this.#wasmPath = options.wasm;
+    }
 
     if (!options.apiNode) {
       throw new TypeError('apiNode should be passed');
@@ -349,12 +354,17 @@ export default class MoneroWallet {
 
     const minerFee = new BN(tx.fee, 10);
     const csFee = tx.csfee ? new BN(tx.csfee, 10) : new BN(0);
+    const fee = minerFee.add(csFee);
     tx.csFee = csFee.toString(10);
     tx.minerFee = minerFee.toString(10);
-    tx.fee = minerFee.add(csFee).toString(10);
+    tx.fee = fee.toString(10);
 
     const amount = outputValue.sub(inputValue);
-    tx.amount = amount.toString(10);
+    if (amount.ltn(0)) {
+      tx.amount = amount.add(fee).toString(10);
+    } else {
+      tx.amount = amount.toString(10);
+    }
     tx.isIncoming = amount.gtn(0);
     tx.timestamp = tx.time * 1000;
 
@@ -622,7 +632,7 @@ export default class MoneroWallet {
 
   async sendTx(data) {
     const initMoneroCoreJs = (await import('@coinspace/monero-core-js')).default;
-    const moneroCoreJs = await initMoneroCoreJs('assets/MoneroCoreJS.wasm');
+    const moneroCoreJs = await initMoneroCoreJs(this.#wasmPath);
 
     data.secretViewKey = this.#wallet.secretViewKey.toString('hex');
     data.secretSpendKey = this.#wallet.secretSpendKey.toString('hex');
