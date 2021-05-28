@@ -429,18 +429,26 @@ export default class MoneroWallet {
     this.#txs.sort((a, b) => a.time - b.time);
     await this.#storage.set('txIds', this.#txIds);
     await this.#storage.set('keyImages', this.#cachedKeyImages);
+    return tx;
   }
 
   async loadTxs() {
-    const txs = Array.from(this.#txs)
-      .reverse()
-      .slice(this.#txsCursor, this.#txsCursor + this.#txsPerPage);
-    this.#txsCursor = this.#txsCursor + this.#txsPerPage;
-    const hasMoreTxs = this.#txsCursor < this.#txs.length;
-    return {
-      txs,
-      hasMoreTxs,
-    };
+    const txs = Array.from(this.#txs).reverse();
+    const cursor = this.#txsCursor ? txs.indexOf(this.#txsCursor) + 1 : 0;
+    const slice = txs.slice(cursor, cursor + this.#txsPerPage);
+    if (slice.length) {
+      this.#txsCursor = slice[slice.length - 1];
+      const hasMoreTxs = txs.indexOf(this.#txsCursor) < (txs.length - 1);
+      return {
+        txs: slice,
+        hasMoreTxs,
+      };
+    } else {
+      return {
+        txs: [],
+        hasMoreTxs: false,
+      };
+    }
   }
 
   #calculateCsFee(value) {
@@ -637,17 +645,17 @@ export default class MoneroWallet {
     data.secretViewKey = this.#wallet.secretViewKey.toString('hex');
     data.secretSpendKey = this.#wallet.secretSpendKey.toString('hex');
 
-    const tx = moneroCoreJs.createTx(data);
+    const rawtx = moneroCoreJs.createTx(data);
     const { txId } = await this.#request({
       baseURL: this.#apiNode,
       url: 'api/v1/tx/send',
       data: {
-        rawtx: tx,
+        rawtx,
       },
       method: 'post',
       seed: 'public',
     });
-    await this.addTx(txId);
-    return tx;
+    // return processed tx
+    return this.addTx(txId);
   }
 }
