@@ -607,11 +607,11 @@ export default class MoneroWallet {
       amount: amount.toString(10),
       address: addressTo.toString(),
     }, {
-      amount: change.toString(10),
-      address: change.gtn(0) ? this.#getAddress('address').toString() : this.#getRandomAddress(),
-    }, {
       amount: csFee.toString(10),
       address: csFee.gtn(0) ? this.#csFeeAddresses[0] : this.#getRandomAddress(),
+    }, {
+      amount: change.toString(10),
+      address: change.gtn(0) ? this.#getAddress('address').toString() : this.#getRandomAddress(),
     }];
 
     const randomOutputs = await this.#loadRandomOutputs(sources.length * RING_COUNT);
