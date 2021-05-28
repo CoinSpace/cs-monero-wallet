@@ -2,7 +2,8 @@ import monerolib from 'monerolib';
 import HDKey from 'hdkey';
 import BN from 'bn.js';
 
-const TXIDS_CHUNK = 50;
+const API_CHUNK = 50;
+const RING_COUNT = 11;
 
 export default class MoneroWallet {
   #wallet;
@@ -229,8 +230,8 @@ export default class MoneroWallet {
 
   async #loadTxs(txIds) {
     const txs = [];
-    for (let i = 0; i < Math.ceil(txIds.length / TXIDS_CHUNK); i++) {
-      const ids = txIds.slice(i * TXIDS_CHUNK, i * TXIDS_CHUNK + TXIDS_CHUNK);
+    for (let i = 0; i < Math.ceil(txIds.length / API_CHUNK); i++) {
+      const ids = txIds.slice(i * API_CHUNK, i * API_CHUNK + API_CHUNK);
       txs.push(await this.#request({
         baseURL: this.#apiNode,
         url: `api/v1/txs/${ids.join(',')}`,
@@ -239,6 +240,23 @@ export default class MoneroWallet {
       }));
     }
     return txs.flat().sort((a, b) => a.time - b.time);
+  }
+
+  async #loadRandomOutputs(count=11) {
+    const outputs = [];
+    for (let i = 0; i < Math.ceil(count / API_CHUNK); i++) {
+      const chunk = API_CHUNK + API_CHUNK * i <= count ? API_CHUNK : count % API_CHUNK;
+      outputs.push(await this.#request({
+        baseURL: this.#apiNode,
+        url: 'api/v1/outputs/random',
+        params: {
+          count: chunk,
+        },
+        method: 'get',
+        seed: 'public',
+      }));
+    }
+    return outputs.flat();
   }
 
   #processTx(tx) {
@@ -255,19 +273,25 @@ export default class MoneroWallet {
     );
 
     for (const output of tx.outs) {
-      const derivations = [mainDerivation];
+      const items = [{
+        derivation: mainDerivation,
+        txPubKey: tx.txPubKey,
+      }];
 
       if (output.additionalPubKey) {
         // additional derivation
-        derivations.push(monerolib.cryptoUtil.generateKeyDerivation(
-          Buffer.from(output.additionalPubKey, 'hex'),
-          this.#wallet.secretViewKey
-        ));
+        items.push({
+          derivation: monerolib.cryptoUtil.generateKeyDerivation(
+            Buffer.from(output.additionalPubKey, 'hex'),
+            this.#wallet.secretViewKey
+          ),
+          txPubKey: output.additionalPubKey,
+        });
       }
 
       for (const address of this.#getAllAddresses()) {
-        for (const derivation of derivations) {
-          const pubKey = monerolib.cryptoUtil.derivePublicKey(derivation, output.index, address.publicSpendKey);
+        for (const item of items) {
+          const pubKey = monerolib.cryptoUtil.derivePublicKey(item.derivation, output.index, address.publicSpendKey);
           if (pubKey.toString('hex') === output.targetKey) {
             if (output.rctType !== monerolib.ringct.RCTTypes.Null) {
               const rct = monerolib.ringct.decodeRct(
@@ -275,7 +299,7 @@ export default class MoneroWallet {
                 output.outPk,
                 output.rctType,
                 output.index,
-                derivation
+                item.derivation
               );
               output.amount = rct.amount;
               output.ours = true;
@@ -287,7 +311,8 @@ export default class MoneroWallet {
               this.#outputs.set(`${tx.txId}:${output.targetKey}`, {
                 txId: tx.txId,
                 confirmed: tx.confirmed,
-                derivation,
+                // derivation and txPubKey
+                ...item,
                 ...output,
               });
             }
@@ -390,8 +415,8 @@ export default class MoneroWallet {
     if (!this.#processTx(tx)) {
       throw new TypeError('Not ours transaction');
     }
-    this.#txs = this.#txs.push(tx)
-      .sort((a, b) => a.time - b.time);
+    this.#txs.push(tx);
+    this.#txs.sort((a, b) => a.time - b.time);
     await this.#storage.set('txIds', this.#txIds);
     await this.#storage.set('keyImages', this.#cachedKeyImages);
   }
@@ -579,25 +604,40 @@ export default class MoneroWallet {
       address: csFee.gtn(0) ? this.#csFeeAddresses[0] : this.#getRandomAddress(),
     }];
 
+    const randomOutputs = await this.#loadRandomOutputs(sources.length * RING_COUNT);
+
     return {
       fee: estimate.toString(10),
       sources,
       destinations,
+      addresses: this.#getAllAddresses().map(address => address.toString()),
+      mixins: sources.map((item, n) => {
+        return {
+          amount: '0',
+          outputs: randomOutputs.slice(RING_COUNT * n, RING_COUNT + RING_COUNT * n),
+        };
+      }),
     };
   }
 
-  async sendTx(tx) {
-    // TODO create tx from params
-    await this.#request({
+  async sendTx(data) {
+    const initMoneroCoreJs = (await import('@coinspace/monero-core-js')).default;
+    const moneroCoreJs = await initMoneroCoreJs('assets/MoneroCoreJS.wasm');
+
+    data.secretViewKey = this.#wallet.secretViewKey.toString('hex');
+    data.secretSpendKey = this.#wallet.secretSpendKey.toString('hex');
+
+    const tx = moneroCoreJs.createTx(data);
+    const { txId } = await this.#request({
       baseURL: this.#apiNode,
       url: 'api/v1/tx/send',
       data: {
-        rawtx: tx.serialized_signed_tx,
+        rawtx: tx,
       },
       method: 'post',
       seed: 'public',
     });
-    await this.addTx(tx.tx_hash);
+    await this.addTx(txId);
     return tx;
   }
 }
