@@ -1,6 +1,8 @@
 import monerolib from 'monerolib';
 import HDKey from 'hdkey';
-import BN from 'bn.js';
+import BigNumber from 'bignumber.js';
+
+import { calculateCsFee, reverseCsFee } from './lib/fee.js';
 
 const API_CHUNK = 50;
 const RING_COUNT = 11;
@@ -22,8 +24,8 @@ export default class MoneroWallet {
   #minConfCoinbase = 60;
   #txsPerPage = 5;
   #txsCursor = 0;
-  // https://github.com/monero-project/monero/blob/v0.17.2.0/src/cryptonote_config.h#L208
-  #dustThreshold = new BN('2000000000', 10);
+  // https://github.com/monero-project/monero/blob/v0.17.2.0/src/wallet/wallet2.cpp#L10924
+  #dustThreshold = new BigNumber('1', 10);
   #baseFee;
   #feeQuantizationMask;
   #csFee;
@@ -93,13 +95,21 @@ export default class MoneroWallet {
   get #unspentsForTx() {
     return Array.from(this.#outputs.values())
       .filter(item => item.spent !== true && item.confirmed === true)
-      .sort((a, b) => b.amount - a.amount)
+      .sort((a, b) => {
+        if (new BigNumber(a.amount).isGreaterThan(b.amount)) {
+          return -1;
+        }
+        if (new BigNumber(a.amount).isLessThan(b.amount)) {
+          return 1;
+        }
+        return 0;
+      })
       .slice(0, this.#maxTxInputs);
   }
 
   get #balance() {
     return this.#unspents
-      .reduce((balance, item) => balance.add(new BN(item.amount, 10)), new BN(0));
+      .reduce((balance, item) => balance.plus(item.amount), new BigNumber(0));
   }
 
   get balance() {
@@ -207,8 +217,8 @@ export default class MoneroWallet {
       method: 'get',
       seed: 'public',
     });
-    this.#baseFee = new BN(result.fee, 10).toString(10);
-    this.#feeQuantizationMask = new BN(result.quantization_mask, 10).toString(10);
+    this.#baseFee = new BigNumber(result.fee, 10).toString(10);
+    this.#feeQuantizationMask = new BigNumber(result.quantization_mask, 10).toString(10);
   }
 
   async #loadCsFee() {
@@ -223,8 +233,8 @@ export default class MoneroWallet {
         seed: 'public',
       });
       this.#csFee = result.fee;
-      this.#csMinFee = new BN(result.minFee, 10);
-      this.#csMaxFee = new BN(result.maxFee, 10);
+      this.#csMinFee = new BigNumber(result.minFee, 10);
+      this.#csMaxFee = new BigNumber(result.maxFee, 10);
       this.#csFeeAddresses = result.addresses;
       this.#csFeeOff = result.addresses.length === 0
         || result.whitelist.includes(this.#getAddress('address'));
@@ -265,8 +275,8 @@ export default class MoneroWallet {
   }
 
   #processTx(tx) {
-    const outputValue = new BN(0);
-    const inputValue = new BN(0);
+    let outputValue = new BigNumber(0);
+    let inputValue = new BigNumber(0);
 
     tx.confirmed = tx.coinbase
       ? tx.confirmations >= this.#minConfCoinbase
@@ -311,7 +321,7 @@ export default class MoneroWallet {
               output.address = address.toString();
               output.addressIndex = address.index,
               tx.ours = true;
-              outputValue.iadd(new BN(output.amount, 10));
+              outputValue = outputValue.plus(output.amount);
 
               this.#outputs.set(`${tx.txId}:${output.targetKey}`, {
                 txId: tx.txId,
@@ -346,26 +356,26 @@ export default class MoneroWallet {
             // for tx history
             input.address = output.address;
             input.amount = output.amount;
-            inputValue.iadd(new BN(output.amount, 10));
+            inputValue = inputValue.plus(output.amount);
           }
         }
       }
     }
 
-    const minerFee = new BN(tx.fee, 10);
-    const csFee = tx.csfee ? new BN(tx.csfee, 10) : new BN(0);
-    const fee = minerFee.add(csFee);
+    const minerFee = new BigNumber(tx.fee, 10);
+    const csFee = tx.csfee ? new BigNumber(tx.csfee, 10) : new BigNumber(0);
+    const fee = minerFee.plus(csFee);
     tx.csFee = csFee.toString(10);
     tx.minerFee = minerFee.toString(10);
     tx.fee = fee.toString(10);
 
-    const amount = outputValue.sub(inputValue);
-    if (amount.ltn(0)) {
-      tx.amount = amount.add(fee).toString(10);
+    const amount = outputValue.minus(inputValue);
+    if (amount.isLessThan(0)) {
+      tx.amount = amount.plus(fee).toString(10);
     } else {
       tx.amount = amount.toString(10);
     }
-    tx.isIncoming = amount.gtn(0);
+    tx.isIncoming = amount.isGreaterThan(0);
     tx.timestamp = tx.time * 1000;
 
     return tx.ours === true;
@@ -452,53 +462,35 @@ export default class MoneroWallet {
   }
 
   #calculateCsFee(value) {
-    if (this.#csFeeOff) {
-      return new BN(0);
-    }
-    let fee = value.muln(this.#csFee);
-    fee = BN.max(fee, this.#csMinFee);
-    fee = BN.min(fee, this.#csMaxFee);
-    if (fee.lt(this.#dustThreshold)) {
-      return new BN(0);
-    }
-    return fee;
+    return calculateCsFee(value, this.#csFeeOff, this.#csFee, this.#csMinFee, this.#csMaxFee);
   }
 
   // value = value + csFee
   #reverseCsFee(value) {
-    if (this.#csFeeOff) {
-      return new BN(0);
-    }
-    let fee = value.muln(this.#csFee / (1 + this.#csFee));
-    fee = BN.max(fee, this.#csMinFee);
-    fee = BN.min(fee, this.#csMaxFee);
-    if (fee.lt(this.#dustThreshold)) {
-      return new BN(0);
-    }
-    return fee;
+    return reverseCsFee(value, this.#csFeeOff, this.#csFee, this.#csMinFee, this.#csMaxFee);
   }
 
   #calculateMaxAmount(feeRate) {
     // TODO fee may be a number ?
     const utxos = this.#unspentsForTx;
     const available = utxos
-      .reduce((available, item) => available.add(new BN(item.amount, 10)), new BN(0));
+      .reduce((available, item) => available.plus(new BigNumber(item.amount, 10)), new BigNumber(0));
     // 3 outputs with change
-    const fee = new BN(monerolib.tx.estimateFee(utxos.length, 10, 3, 44,
+    const fee = new BigNumber(monerolib.tx.estimateFee(utxos.length, 10, 3, 44,
       this.#baseFee, feeRate.feeMultiplier, this.#feeQuantizationMask), 10);
-    if (available.lte(fee)) {
-      return new BN(0);
+    if (available.isLessThanOrEqualTo(fee)) {
+      return new BigNumber(0);
     }
-    const csFee = this.#reverseCsFee(available.sub(fee));
-    const maxAmount = available.sub(fee).sub(csFee);
-    if (maxAmount.ltn(0)) {
-      return new BN(0);
+    const csFee = this.#reverseCsFee(available.minus(fee));
+    const maxAmount = available.minus(fee).minus(csFee);
+    if (maxAmount.isLessThan(0)) {
+      return new BigNumber(0);
     }
     return maxAmount;
   }
 
   estimateFees(value) {
-    const amount = new BN(value, 10);
+    const amount = new BigNumber(value, 10);
     return this.#feeRates.map((feeRate) => {
       const info = this.#estimateFee(amount, feeRate);
       return {
@@ -514,7 +506,7 @@ export default class MoneroWallet {
     const utxos = this.#unspentsForTx;
 
     const maxAmount = this.#calculateMaxAmount(feeRate);
-    if (value.gt(maxAmount)) {
+    if (value.isGreaterThan(maxAmount)) {
       value = maxAmount;
     }
 
@@ -522,46 +514,46 @@ export default class MoneroWallet {
 
     if (utxos.length === 0) {
       // dummy 1 input
-      const fee = new BN(monerolib.tx.estimateFee(1, 10, 3, 44,
+      const fee = new BigNumber(monerolib.tx.estimateFee(1, 10, 3, 44,
         this.#baseFee, feeRate.feeMultiplier, this.#feeQuantizationMask), 10);
-      const estimate = csFee.add(fee, 10);
+      const estimate = csFee.plus(fee, 10);
       return {
         fee,
         csFee,
-        change: new BN(0),
+        change: new BigNumber(0),
         estimate,
         maxAmount,
         sources: [],
       };
     }
 
-    const accum = new BN(0);
+    let accum = new BigNumber(0);
     const sources = [];
     let ins = 0;
 
     for (const item of utxos) {
       ins++;
-      accum.iadd(new BN(item.amount, 10));
+      accum = accum.plus(item.amount);
       sources.push(item);
-      if (accum.lte(value)) {
+      if (accum.isLessThanOrEqualTo(value)) {
         continue;
       }
       // fee with change: 3 outputs
-      const fee = new BN(monerolib.tx.estimateFee(ins, 10, 3, 44,
+      const fee = new BigNumber(monerolib.tx.estimateFee(ins, 10, 3, 44,
         this.#baseFee, feeRate.feeMultiplier, this.#feeQuantizationMask), 10);
-      const estimate = csFee.add(fee);
-      const total = value.add(estimate);
-      let change = accum.sub(total);
-      if (change.lte(this.#dustThreshold)) {
+      const estimate = csFee.plus(fee);
+      const total = value.plus(estimate);
+      let change = accum.minus(total);
+      if (change.isLessThanOrEqualTo(this.#dustThreshold)) {
         if (csFee.isZero()) {
-          fee.add(change);
+          fee.plus(change);
         } else {
-          csFee.add(change);
+          csFee.plus(change);
         }
-        estimate.add(change);
-        change = new BN(0);
+        estimate.plus(change);
+        change = new BigNumber(0);
       }
-      if (total.lte(accum)) {
+      if (total.isLessThanOrEqualTo(accum)) {
         return {
           fee,
           csFee,
@@ -592,8 +584,8 @@ export default class MoneroWallet {
       }
     }
 
-    const amount = new BN(value, 10);
-    if (amount.lte(this.#dustThreshold)) {
+    const amount = new BigNumber(value, 10);
+    if (amount.isLessThan(this.#dustThreshold)) {
       const error = new Error('Invalid value');
       error.dustThreshold = this.#dustThreshold.toString(10);
       throw error;
@@ -603,9 +595,9 @@ export default class MoneroWallet {
 
     const { csFee, change, estimate, maxAmount, sources } = this.#estimateFee(amount, feeRate);
 
-    if (amount.gt(maxAmount)) {
+    if (amount.isGreaterThan(maxAmount)) {
       const error = new Error('Insufficient funds');
-      if (amount.lt(this.#balance)) {
+      if (amount.isLessThan(this.#balance)) {
         error.details = 'Additional funds confirmation pending';
       }
       throw error;
@@ -616,10 +608,10 @@ export default class MoneroWallet {
       address: addressTo.toString(),
     }, {
       amount: csFee.toString(10),
-      address: csFee.gtn(0) ? this.#csFeeAddresses[0] : this.#getRandomAddress(),
+      address: csFee.isGreaterThan(0) ? this.#csFeeAddresses[0] : this.#getRandomAddress(),
     }, {
       amount: change.toString(10),
-      address: change.gtn(0) ? this.#getAddress('address').toString() : this.#getRandomAddress(),
+      address: change.isGreaterThan(0) ? this.#getAddress('address').toString() : this.#getRandomAddress(),
     }];
 
     const randomOutputs = await this.#loadRandomOutputs(sources.length * RING_COUNT);
