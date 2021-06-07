@@ -53,6 +53,9 @@ export default class MoneroWallet {
   get networkName() {
     return 'monero';
   }
+  get name() {
+    return 'monero';
+  }
   // TODO rename to symbol?
   get denomination() {
     return 'XMR';
@@ -426,14 +429,14 @@ export default class MoneroWallet {
   async addTx(txId) {
     // check if already added
     if (this.#txIds.includes(txId)) {
-      return;
+      throw new TypeError('Transaction already added');
     }
     const [tx] = await this.#loadTxs([txId]);
     if (!tx) {
       throw new TypeError('Unknown transaction');
     }
     if (!this.#processTx(tx)) {
-      throw new TypeError('Not ours transaction');
+      throw new TypeError('Not your transaction');
     }
     this.#txs.push(tx);
     this.#txs.sort((a, b) => a.time - b.time);
@@ -649,5 +652,15 @@ export default class MoneroWallet {
     });
     // return processed tx
     return this.addTx(txId);
+  }
+
+  exportPrivateKeys() {
+    const lines = ['address,secretviewkey,secretspendkey'];
+    lines.push([
+      this.#getAddress('address').toString(),
+      this.#wallet.secretViewKey.toString('hex'),
+      this.#wallet.secretSpendKey.toString('hex'),
+    ].join(','));
+    return lines.join('\n');
   }
 }
