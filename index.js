@@ -45,6 +45,7 @@ export default class MoneroWallet {
     name: 'fastest',
     feeMultiplier: 25,
   }];
+  #moneroCoreJS;
 
   get #txIds() {
     return this.#txs.map(item => item.txId);
@@ -183,6 +184,16 @@ export default class MoneroWallet {
       secretViewKey,
       nettype,
     });
+  }
+
+  #initMoneroCoreJS() {
+    if (!this.#moneroCoreJS) {
+      this.#moneroCoreJS = import('@coinspace/monero-core-js')
+        .then((moneroCoreJS) => {
+          return moneroCoreJS.default(this.#wasmPath);
+        });
+    }
+    return this.#moneroCoreJS;
   }
 
   lock() {
@@ -640,8 +651,7 @@ export default class MoneroWallet {
   }
 
   async sendTx(data) {
-    const initMoneroCoreJs = (await import('@coinspace/monero-core-js')).default;
-    const moneroCoreJs = await initMoneroCoreJs(this.#wasmPath);
+    const moneroCoreJs = await this.#initMoneroCoreJS();
 
     data.secretViewKey = this.#wallet.secretViewKey.toString('hex');
     data.secretSpendKey = this.#wallet.secretSpendKey.toString('hex');
