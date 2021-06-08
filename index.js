@@ -4,7 +4,8 @@ import BigNumber from 'bignumber.js';
 
 import { calculateCsFee, reverseCsFee } from './lib/fee.js';
 
-const API_CHUNK = 50;
+const TXS_CHUNK = 10;
+const RANDOM_CHUNK = 50;
 const RING_COUNT = 11;
 
 export default class MoneroWallet {
@@ -251,8 +252,8 @@ export default class MoneroWallet {
 
   async #loadTxs(txIds) {
     const txs = [];
-    for (let i = 0; i < Math.ceil(txIds.length / API_CHUNK); i++) {
-      const ids = txIds.slice(i * API_CHUNK, i * API_CHUNK + API_CHUNK);
+    for (let i = 0; i < Math.ceil(txIds.length / TXS_CHUNK); i++) {
+      const ids = txIds.slice(i * TXS_CHUNK, i * TXS_CHUNK + TXS_CHUNK);
       txs.push(await this.#request({
         baseURL: this.#apiNode,
         url: `api/v1/txs/${ids.join(',')}`,
@@ -265,8 +266,8 @@ export default class MoneroWallet {
 
   async #loadRandomOutputs(count=11) {
     const outputs = [];
-    for (let i = 0; i < Math.ceil(count / API_CHUNK); i++) {
-      const chunk = API_CHUNK + API_CHUNK * i <= count ? API_CHUNK : count % API_CHUNK;
+    for (let i = 0; i < Math.ceil(count / RANDOM_CHUNK); i++) {
+      const chunk = RANDOM_CHUNK + RANDOM_CHUNK * i <= count ? RANDOM_CHUNK : count % RANDOM_CHUNK;
       outputs.push(await this.#request({
         baseURL: this.#apiNode,
         url: 'api/v1/outputs/random',
