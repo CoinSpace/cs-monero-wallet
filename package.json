@@ -1,6 +1,6 @@
 {
   "name": "@coinspace/cs-monero-wallet",
-  "version": "0.0.16",
+  "version": "0.0.17",
   "description": "Monero Wallet for Coin app",
   "author": "Coin Crypto Wallet <support@coin.space> (https://coin.space/)",
   "license": "MIT",
