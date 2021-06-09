@@ -19,6 +19,8 @@ export default class MoneroWallet {
   #isLocked;
   #txs = [];
   #outputs = new Map();
+  #balance = new BigNumber(0);
+  #unspentsForTx;
   #cachedKeyImages;
   #maxTxInputs;
   #minConf = 10;
@@ -95,31 +97,6 @@ export default class MoneroWallet {
     });
   }
 
-  get #unspents() {
-    return Array.from(this.#outputs.values())
-      .filter(item => item.spent !== true);
-  }
-
-  get #unspentsForTx() {
-    return Array.from(this.#outputs.values())
-      .filter(item => item.spent !== true && item.confirmed === true)
-      .sort((a, b) => {
-        if (new BigNumber(a.amount).isGreaterThan(b.amount)) {
-          return -1;
-        }
-        if (new BigNumber(a.amount).isLessThan(b.amount)) {
-          return 1;
-        }
-        return 0;
-      })
-      .slice(0, this.#maxTxInputs);
-  }
-
-  get #balance() {
-    return this.#unspents
-      .reduce((balance, item) => balance.plus(item.amount), new BigNumber(0));
-  }
-
   get balance() {
     return this.#balance.toString(10);
   }
@@ -165,6 +142,27 @@ export default class MoneroWallet {
     }
 
     this.#addressType = options.addressType || this.addressTypes[0];
+  }
+
+  #calculateUnspentsForTx() {
+    return Array.from(this.#outputs.values())
+      .filter(item => item.spent !== true && item.confirmed === true)
+      .sort((a, b) => {
+        if (new BigNumber(a.amount).isGreaterThan(b.amount)) {
+          return -1;
+        }
+        if (new BigNumber(a.amount).isLessThan(b.amount)) {
+          return 1;
+        }
+        return 0;
+      })
+      .slice(0, this.#maxTxInputs);
+  }
+
+  #calculateBalance() {
+    return Array.from(this.#outputs.values())
+      .filter(item => item.spent !== true)
+      .reduce((balance, item) => balance.plus(item.amount), new BigNumber(0));
   }
 
   #walletFromSeed(seed, nettype) {
@@ -226,6 +224,8 @@ export default class MoneroWallet {
 
     await this.#loadFee();
     await this.#loadCsFee();
+    this.#balance = this.#calculateBalance();
+    this.#unspentsForTx = this.#calculateUnspentsForTx();
   }
 
   async #loadFee() {
@@ -457,6 +457,8 @@ export default class MoneroWallet {
     this.#txs.sort((a, b) => a.time - b.time);
     await this.#storage.set('txIds', this.#txIds);
     await this.#storage.set('keyImages', this.#cachedKeyImages);
+    this.#balance = this.#calculateBalance();
+    this.#unspentsForTx = this.#calculateUnspentsForTx();
     return tx;
   }
 
@@ -507,7 +509,7 @@ export default class MoneroWallet {
     return maxAmount;
   }
 
-  estimateFees(value) {
+  estimateFees(value = 0) {
     const amount = new BigNumber(value, 10);
     return this.#feeRates.map((feeRate) => {
       const info = this.#estimateFee(amount, feeRate);
@@ -522,19 +524,15 @@ export default class MoneroWallet {
 
   #estimateFee(value, feeRate) {
     const utxos = this.#unspentsForTx;
-
     const maxAmount = this.#calculateMaxAmount(feeRate);
-    if (value.isGreaterThan(maxAmount)) {
-      value = maxAmount;
-    }
-
     const csFee = this.#calculateCsFee(value);
 
+    // estimate fee for usual tx
     if (utxos.length === 0) {
       // dummy 1 input
       const minerFee = new BigNumber(monerolib.tx.estimateFee(1, 10, 3, this.#txExtraSize,
         this.#baseFee, feeRate.feeMultiplier, this.#feeQuantizationMask), 10);
-      const estimate = csFee.plus(minerFee, 10);
+      const estimate = csFee.plus(minerFee);
       return {
         minerFee,
         csFee,
@@ -545,44 +543,55 @@ export default class MoneroWallet {
       };
     }
 
-    let accum = new BigNumber(0);
-    const sources = [];
-    let ins = 0;
-
-    for (const item of utxos) {
-      ins++;
-      accum = accum.plus(item.amount);
-      sources.push(item);
-      if (accum.isLessThanOrEqualTo(value)) {
-        continue;
-      }
-      // fee with change: 3 outputs
-      const minerFee = new BigNumber(monerolib.tx.estimateFee(ins, 10, 3, this.#txExtraSize,
+    // estimate fee to clear wallet
+    if (value.isEqualTo(maxAmount)) {
+      const minerFee = new BigNumber(monerolib.tx.estimateFee(utxos.length, 10, 3, this.#txExtraSize,
         this.#baseFee, feeRate.feeMultiplier, this.#feeQuantizationMask), 10);
       const estimate = csFee.plus(minerFee);
-      const total = value.plus(estimate);
-      let change = accum.minus(total);
-      if (change.isLessThanOrEqualTo(this.#dustThreshold)) {
-        if (csFee.isZero()) {
-          minerFee.plus(change);
-        } else {
-          csFee.plus(change);
+      return {
+        minerFee,
+        csFee,
+        change: new BigNumber(0),
+        estimate,
+        maxAmount,
+        sources: utxos,
+      };
+    }
+
+    let available = new BigNumber(0);
+    const sources = [];
+    for (const item of utxos) {
+      available = available.plus(item.amount);
+      sources.push(item);
+      if (available.isLessThanOrEqualTo(value)) {
+        continue;
+      } else {
+        // fee with change: 3 outputs
+        let minerFee = new BigNumber(monerolib.tx.estimateFee(sources.length, 10, 3, this.#txExtraSize,
+          this.#baseFee, feeRate.feeMultiplier, this.#feeQuantizationMask), 10);
+        let estimate = csFee.plus(minerFee);
+        const total = value.plus(estimate);
+        if (total.isLessThanOrEqualTo(available)) {
+          let change = available.minus(total);
+          if (change.isGreaterThan(0) && change.isLessThanOrEqualTo(this.#dustThreshold)) {
+            minerFee = minerFee.plus(change);
+            estimate = estimate.plus(change);
+            change = new BigNumber(0);
+          }
+          return {
+            minerFee,
+            csFee,
+            change,
+            estimate,
+            maxAmount,
+            sources,
+          };
         }
-        estimate.plus(change);
-        change = new BigNumber(0);
-      }
-      if (total.isLessThanOrEqualTo(accum)) {
-        return {
-          minerFee,
-          csFee,
-          change,
-          estimate,
-          maxAmount,
-          sources,
-        };
       }
     }
-    throw new Error(`fee could not be estimated for value ${value}`);
+    // TODO handle error case with custom fee rate in future
+    //throw new Error(`fee could not be estimated for value ${value}`);
+    return this.#estimateFee(maxAmount, feeRate);
   }
 
   #parseAddress(str) {
@@ -594,7 +603,7 @@ export default class MoneroWallet {
     }
   }
 
-  async createTx(to, value, feeName) {
+  async createTx(to, value, fee) {
     const addressTo = this.#parseAddress(to);
     for (const address of this.#getAllAddresses()) {
       if (address.toString() === addressTo.toString()) {
@@ -609,16 +618,51 @@ export default class MoneroWallet {
       throw error;
     }
 
-    const feeRate = this.#feeRates.find(item => item.name === feeName);
+    const totalFee = new BigNumber(fee, 10);
+    const csFee = this.#calculateCsFee(amount);
 
-    const { minerFee, csFee, change, estimate, maxAmount, sources } = this.#estimateFee(amount, feeRate);
+    if (!totalFee.isFinite() || totalFee.isLessThan(csFee)) {
+      throw new Error('Invalid fee');
+    }
 
-    if (amount.isGreaterThan(maxAmount)) {
+    const total = amount.plus(totalFee);
+    const utxos = this.#unspentsForTx;
+
+    let available = new BigNumber(0);
+    let change = new BigNumber(0);
+    const sources = [];
+
+    for (const item of utxos) {
+      available = available.plus(item.amount);
+      sources.push(item);
+      if (available.isLessThan(total)) {
+        continue;
+      } else {
+        change = available.minus(total);
+        if (change.isLessThanOrEqualTo(this.#dustThreshold)) {
+          if (!csFee.isZero()) {
+            csFee.plus(change);
+          }
+          change = new BigNumber(0);
+        }
+        break;
+      }
+    }
+
+    if (total.isGreaterThan(available)) {
       const error = new Error('Insufficient funds');
       if (amount.isLessThan(this.#balance)) {
         error.details = 'Additional funds confirmation pending';
       }
       throw error;
+    }
+
+    // minimum miner fee
+    const minerFee = new BigNumber(monerolib.tx.estimateFee(sources.length, 10, 3, this.#txExtraSize,
+      this.#baseFee, 1, this.#feeQuantizationMask), 10);
+
+    if (totalFee.minus(csFee).isLessThan(minerFee)) {
+      throw new Error('Invalid fee');
     }
 
     const destinations = [{
@@ -635,9 +679,9 @@ export default class MoneroWallet {
     const randomOutputs = await this.#loadRandomOutputs(sources.length * RING_COUNT);
 
     return {
-      minerFee: minerFee.toString(10),
+      minerFee: totalFee.minus(csFee).toString(10),
       csFee: csFee.toString(10),
-      fee: estimate.toString(10),
+      fee: totalFee.toString(10),
       sources,
       destinations,
       addresses: this.#getAllAddresses().map(address => address.toString()),
