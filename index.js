@@ -20,7 +20,7 @@ export default class MoneroWallet {
   #txs = [];
   #outputs = new Map();
   #balance = new BigNumber(0);
-  #unspentsForTx;
+  #unspentsForTx = [];
   #cachedKeyImages;
   #maxTxInputs;
   #minConf = 10;
@@ -28,9 +28,9 @@ export default class MoneroWallet {
   #txsPerPage = 5;
   #txsCursor = 0;
   // https://github.com/monero-project/monero/blob/v0.17.2.0/src/wallet/wallet2.cpp#L10924
-  #dustThreshold = new BigNumber('1', 10);
-  #baseFee;
-  #feeQuantizationMask;
+  #dustThreshold = new BigNumber(1);
+  #baseFee = '1';
+  #feeQuantizationMask = '1000';
   // tx pub key + payment id + 3 * additional pub keys
   // 1 + 32 + 1 + 10 + 1 + 1 + 32 + 32 + 32
   #txExtraSize = 142;
@@ -165,6 +165,26 @@ export default class MoneroWallet {
       .reduce((balance, item) => balance.plus(item.amount), new BigNumber(0));
   }
 
+  #requestNode(config) {
+    return this.#request({
+      ...config,
+      baseURL: this.#apiNode,
+      disableDefaultCatch: true,
+    }).catch((err) => {
+      console.error(err);
+      throw new Error('cs-node-error');
+    });
+  }
+
+  #requestWeb(config) {
+    return this.#request({
+      ...config,
+      baseURL: this.#apiWeb,
+    }).catch((err) => {
+      console.error(err);
+    });
+  }
+
   #walletFromSeed(seed, nettype) {
     const hdkey = HDKey.fromMasterSeed(Buffer.from(seed, 'hex'));
     // https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki
@@ -229,8 +249,7 @@ export default class MoneroWallet {
   }
 
   async #loadFee() {
-    const result = await this.#request({
-      baseURL: this.#apiNode,
+    const result = await this.#requestNode({
       url: 'api/v1/estimatefee',
       method: 'get',
       seed: 'public',
@@ -241,8 +260,7 @@ export default class MoneroWallet {
 
   async #loadCsFee() {
     try {
-      const result = await this.#request({
-        baseURL: this.#apiWeb,
+      const result = await this.#requestWeb({
         url: 'api/v2/csfee',
         params: {
           crypto: 'monero',
@@ -265,8 +283,7 @@ export default class MoneroWallet {
     const txs = [];
     for (let i = 0; i < Math.ceil(txIds.length / TXS_CHUNK); i++) {
       const ids = txIds.slice(i * TXS_CHUNK, i * TXS_CHUNK + TXS_CHUNK);
-      txs.push(await this.#request({
-        baseURL: this.#apiNode,
+      txs.push(await this.#requestNode({
         url: `api/v1/txs/${ids.join(',')}`,
         method: 'get',
         seed: 'public',
@@ -279,8 +296,7 @@ export default class MoneroWallet {
     const outputs = [];
     for (let i = 0; i < Math.ceil(count / RANDOM_CHUNK); i++) {
       const chunk = RANDOM_CHUNK + RANDOM_CHUNK * i <= count ? RANDOM_CHUNK : count % RANDOM_CHUNK;
-      outputs.push(await this.#request({
-        baseURL: this.#apiNode,
+      outputs.push(await this.#requestNode({
         url: 'api/v1/outputs/random',
         params: {
           count: chunk,
@@ -493,6 +509,9 @@ export default class MoneroWallet {
   #calculateMaxAmount(feeRate) {
     // TODO fee may be a number ?
     const utxos = this.#unspentsForTx;
+    if (utxos.length === 0) {
+      return new BigNumber(0);
+    }
     const available = utxos
       .reduce((available, item) => available.plus(new BigNumber(item.amount, 10)), new BigNumber(0));
     // 3 outputs with change
@@ -701,8 +720,7 @@ export default class MoneroWallet {
     data.secretSpendKey = this.#wallet.secretSpendKey.toString('hex');
 
     const rawtx = moneroCoreJs.createTx(data);
-    const { txId } = await this.#request({
-      baseURL: this.#apiNode,
+    const { txId } = await this.#requestNode({
       url: 'api/v1/tx/send',
       data: {
         rawtx,
