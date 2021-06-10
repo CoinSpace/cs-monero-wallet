@@ -558,7 +558,6 @@ export default class MoneroWallet {
         change: new BigNumber(0),
         estimate,
         maxAmount,
-        sources: [],
       };
     }
 
@@ -573,7 +572,6 @@ export default class MoneroWallet {
         change: new BigNumber(0),
         estimate,
         maxAmount,
-        sources: utxos,
       };
     }
 
@@ -603,14 +601,22 @@ export default class MoneroWallet {
             change,
             estimate,
             maxAmount,
-            sources,
           };
         }
       }
     }
     // TODO handle error case with custom fee rate in future
     //throw new Error(`fee could not be estimated for value ${value}`);
-    return this.#estimateFee(maxAmount, feeRate);
+    const minerFee = new BigNumber(monerolib.tx.estimateFee(utxos.length, 10, 3, this.#txExtraSize,
+      this.#baseFee, feeRate.feeMultiplier, this.#feeQuantizationMask), 10);
+    const estimate = csFee.plus(minerFee);
+    return {
+      minerFee,
+      csFee,
+      change: new BigNumber(0),
+      estimate,
+      maxAmount,
+    };
   }
 
   #parseAddress(str) {
@@ -670,7 +676,7 @@ export default class MoneroWallet {
 
     if (total.isGreaterThan(available)) {
       const error = new Error('Insufficient funds');
-      if (amount.isLessThan(this.#balance)) {
+      if (total.isLessThan(this.#balance)) {
         error.details = 'Additional funds confirmation pending';
       }
       throw error;
