@@ -4,7 +4,7 @@ import BigNumber from 'bignumber.js';
 
 import { calculateCsFee, reverseCsFee } from './lib/fee.js';
 
-const TXS_CHUNK = 10;
+const TXS_CHUNK = 50;
 const RANDOM_CHUNK = 50;
 const RING_COUNT = 11;
 
