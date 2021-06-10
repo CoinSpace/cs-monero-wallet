@@ -42,7 +42,7 @@ async function mockRequest(config) {
   console.log(config);
 }
 
-describe.only('Wallet', () => {
+describe('Wallet', () => {
   describe('constructor', () => {
     it('with seed', () => {
       const wallet = new MoneroWallet({
@@ -270,13 +270,13 @@ describe.only('Wallet', () => {
       {
         name: 'default',
         default: true,
-        estimate: '5417795006',
+        estimate: '51109410000',
         maxAmount: '8616770013995',
       },
       {
         name: 'fastest',
         default: false,
-        estimate: '32030328740',
+        estimate: '77735250000',
         maxAmount: '8590157480261',
       },
     ]);
