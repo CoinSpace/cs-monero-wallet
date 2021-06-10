@@ -351,20 +351,20 @@ export default class MoneroWallet {
                 item.derivation
               );
               output.amount = rct.amount;
-              output.ours = true;
-              output.address = address.toString();
-              output.addressIndex = address.index,
-              tx.ours = true;
-              outputValue = outputValue.plus(output.amount);
-
-              this.#outputs.set(`${tx.txId}:${output.targetKey}`, {
-                txId: tx.txId,
-                confirmed: tx.confirmed,
-                // derivation and txPubKey
-                ...item,
-                ...output,
-              });
             }
+            output.ours = true;
+            output.address = address.toString();
+            output.addressIndex = address.index,
+            tx.ours = true;
+            outputValue = outputValue.plus(output.amount);
+
+            this.#outputs.set(`${tx.txId}:${output.targetKey}`, {
+              txId: tx.txId,
+              confirmed: tx.confirmed,
+              // derivation and txPubKey
+              ...item,
+              ...output,
+            });
           }
         }
         if (output.ours) {
