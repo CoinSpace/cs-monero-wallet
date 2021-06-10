@@ -396,8 +396,8 @@ export default class MoneroWallet {
       }
     }
 
-    const minerFee = new BigNumber(tx.fee, 10);
-    const csFee = tx.csfee ? new BigNumber(tx.csfee, 10) : new BigNumber(0);
+    const minerFee = new BigNumber(tx.fee || 0, 10);
+    const csFee = new BigNumber(tx.csfee || 0, 10);
     const fee = minerFee.plus(csFee);
     tx.csFee = csFee.toString(10);
     tx.minerFee = minerFee.toString(10);
