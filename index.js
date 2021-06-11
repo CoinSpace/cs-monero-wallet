@@ -180,8 +180,6 @@ export default class MoneroWallet {
     return this.#request({
       ...config,
       baseURL: this.#apiWeb,
-    }).catch((err) => {
-      console.error(err);
     });
   }
 
@@ -246,6 +244,11 @@ export default class MoneroWallet {
     await this.#loadCsFee();
     this.#balance = this.#calculateBalance();
     this.#unspentsForTx = this.#calculateUnspentsForTx();
+  }
+
+  async update() {
+    await this.#loadFee();
+    await this.#loadCsFee();
   }
 
   async #loadFee() {
