@@ -5,7 +5,6 @@ import BigNumber from 'bignumber.js';
 import { calculateCsFee, reverseCsFee } from './lib/fee.js';
 
 const TXS_CHUNK = 50;
-const RANDOM_CHUNK = 50;
 const RING_COUNT = 11;
 
 export default class MoneroWallet {
@@ -295,20 +294,16 @@ export default class MoneroWallet {
     return txs.flat().sort((a, b) => a.time - b.time);
   }
 
-  async #loadRandomOutputs(count=11) {
-    const outputs = [];
-    for (let i = 0; i < Math.ceil(count / RANDOM_CHUNK); i++) {
-      const chunk = RANDOM_CHUNK + RANDOM_CHUNK * i <= count ? RANDOM_CHUNK : count % RANDOM_CHUNK;
-      outputs.push(await this.#requestNode({
-        url: 'api/v1/outputs/random',
-        params: {
-          count: chunk,
-        },
-        method: 'get',
-        seed: 'public',
-      }));
-    }
-    return outputs.flat();
+  async #loadRandomOutputs(count=11, height) {
+    return this.#requestNode({
+      url: 'api/v1/outputs/random',
+      params: {
+        count,
+        height,
+      },
+      method: 'get',
+      seed: 'public',
+    });
   }
 
   #processTx(tx) {
@@ -704,7 +699,13 @@ export default class MoneroWallet {
       address: change.isGreaterThan(0) ? this.#getAddress('address').toString() : this.#getRandomAddress(),
     }];
 
-    const randomOutputs = await this.#loadRandomOutputs(sources.length * RING_COUNT);
+    const mixins = [];
+    for (const source of sources) {
+      mixins.push({
+        amount: '0',
+        outputs: await this.#loadRandomOutputs(RING_COUNT, source.height),
+      });
+    }
 
     return {
       minerFee: totalFee.minus(csFee).toString(10),
@@ -713,12 +714,7 @@ export default class MoneroWallet {
       sources,
       destinations,
       addresses: this.#getAllAddresses().map(address => address.toString()),
-      mixins: sources.map((item, n) => {
-        return {
-          amount: '0',
-          outputs: randomOutputs.slice(RING_COUNT * n, RING_COUNT + RING_COUNT * n),
-        };
-      }),
+      mixins,
     };
   }
 
