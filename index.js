@@ -37,7 +37,7 @@ export default class MoneroWallet {
   #csMinFee;
   #csMaxFee;
   #csFeeAddresses;
-  #csFeeOff = false;
+  #csFeeOff = true;
   #feeRates = [{
     name: 'default',
     default: true,
