@@ -456,6 +456,9 @@ export default class MoneroWallet {
   }
 
   async addTx(txId) {
+    if (!/^[0-9A-Fa-f]{64}$/.test(txId)) {
+      throw new TypeError('Invalid Transaction ID');
+    }
     // check if already added
     if (this.#txIds.includes(txId)) {
       throw new TypeError('Transaction already added');
