@@ -33,6 +33,12 @@ describe('fee', () => {
       const fee = calculateCsFee(value, false, 0.0005, '100000000', '100000000000');
       assert(fee.isEqualTo('100000000000'));
     });
+
+    it('to be zero if skip minimum is true', () => {
+      const value = new BigNumber('199999999999');
+      const fee = calculateCsFee(value, false, 0.0005, '100000000', '100000000000', true);
+      assert(fee.isZero());
+    });
   });
 
   describe('cs fee reverse calculation', () => {
@@ -64,6 +70,12 @@ describe('fee', () => {
       const value = new BigNumber('500000000000000');
       const fee = reverseCsFee(value, false, 0.0005, '100000000', '100000000000');
       assert(fee.isEqualTo('100000000000'));
+    });
+
+    it('to be zero if skip minimum is true', () => {
+      const value = new BigNumber('199999999999');
+      const fee = reverseCsFee(value, false, 0.0005, '100000000', '100000000000', true);
+      assert(fee.isZero());
     });
   });
 

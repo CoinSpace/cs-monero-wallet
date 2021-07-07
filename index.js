@@ -36,6 +36,7 @@ export default class MoneroWallet {
   #csFee;
   #csMinFee;
   #csMaxFee;
+  #csSkipMinFee;
   #csFeeAddresses;
   #csFeeOff = true;
   #feeRates = [{
@@ -273,6 +274,7 @@ export default class MoneroWallet {
       this.#csFee = result.fee;
       this.#csMinFee = new BigNumber(result.minFee, 10);
       this.#csMaxFee = new BigNumber(result.maxFee, 10);
+      this.#csSkipMinFee = result.skipMinFee || false;
       this.#csFeeAddresses = result.addresses;
       this.#csFeeOff = result.addresses.length === 0
         || result.whitelist.includes(this.#getAddress('address'));
@@ -499,12 +501,12 @@ export default class MoneroWallet {
   }
 
   #calculateCsFee(value) {
-    return calculateCsFee(value, this.#csFeeOff, this.#csFee, this.#csMinFee, this.#csMaxFee);
+    return calculateCsFee(value, this.#csFeeOff, this.#csFee, this.#csMinFee, this.#csMaxFee, this.#csSkipMinFee);
   }
 
   // value = value + csFee
   #reverseCsFee(value) {
-    return reverseCsFee(value, this.#csFeeOff, this.#csFee, this.#csMinFee, this.#csMaxFee);
+    return reverseCsFee(value, this.#csFeeOff, this.#csFee, this.#csMinFee, this.#csMaxFee, this.#csSkipMinFee);
   }
 
   #calculateMaxAmount(feeRate) {
