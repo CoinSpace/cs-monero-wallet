@@ -14,6 +14,7 @@ export default class MoneroWallet {
   #wasmPath = 'node_modules/@coinspace/monero-core-js/build/MoneroCoreJS.wasm';
   #apiNode;
   #apiWeb;
+  #crypto;
   #addressType;
   #isLocked;
   #txs = [];
@@ -53,21 +54,6 @@ export default class MoneroWallet {
     return this.#txs.map(item => item.txId);
   }
 
-  get decimals() {
-    return 12;
-  }
-
-  get networkName() {
-    return 'monero';
-  }
-  get name() {
-    return 'monero';
-  }
-  // TODO rename to symbol?
-  get denomination() {
-    return 'XMR';
-  }
-
   get addressTypes() {
     return ['address', 'subaddress'];
   }
@@ -101,6 +87,10 @@ export default class MoneroWallet {
     return this.#balance.toString(10);
   }
 
+  get crypto() {
+    return this.#crypto;
+  }
+
   constructor(options = {}) {
     if (!options.storage) {
       throw new TypeError('storage should be passed');
@@ -125,6 +115,11 @@ export default class MoneroWallet {
       throw new TypeError('apiWeb should be passed');
     }
     this.#apiWeb = options.apiWeb;
+
+    if (!options.crypto) {
+      throw new TypeError('crypto should be passed');
+    }
+    this.#crypto = options.crypto;
 
     this.#maxTxInputs = options.maxTxInputs || 292;
 
