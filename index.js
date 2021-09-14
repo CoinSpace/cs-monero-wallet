@@ -10,6 +10,7 @@ const RING_COUNT = 11;
 export default class MoneroWallet {
   #wallet;
   #storage;
+  #cache;
   #request;
   #wasmPath = 'node_modules/@coinspace/monero-core-js/build/MoneroCoreJS.wasm';
   #apiNode;
@@ -66,6 +67,7 @@ export default class MoneroWallet {
     if (!this.addressTypes.includes(addressType)) {
       throw new TypeError('unsupported address type');
     }
+    this.#cache.set('addressType', addressType);
     this.#addressType = addressType;
   }
 
@@ -96,6 +98,11 @@ export default class MoneroWallet {
       throw new TypeError('storage should be passed');
     }
     this.#storage = options.storage;
+
+    if (!options.cache) {
+      throw new TypeError('cache should be passed');
+    }
+    this.#cache = options.cache;
 
     if (!options.request) {
       throw new TypeError('request should be passed');
@@ -136,7 +143,8 @@ export default class MoneroWallet {
       throw new TypeError('seed or publicKey should be passed');
     }
 
-    this.#addressType = options.addressType || this.addressTypes[0];
+    this.#balance = new BigNumber(this.#cache.get('balance') || 0);
+    this.#addressType = this.#cache.get('addressType') || this.addressTypes[0];
   }
 
   #calculateUnspentsForTx() {
@@ -238,6 +246,7 @@ export default class MoneroWallet {
     await this.#loadFee();
     await this.#loadCsFee();
     this.#balance = this.#calculateBalance();
+    this.#cache.set('balance', this.#balance);
     this.#unspentsForTx = this.#calculateUnspentsForTx();
   }
 
@@ -472,6 +481,7 @@ export default class MoneroWallet {
     await this.#storage.set('txIds', this.#txIds);
     await this.#storage.set('keyImages', this.#cachedKeyImages);
     this.#balance = this.#calculateBalance();
+    this.#cache.set('balance', this.#balance);
     this.#unspentsForTx = this.#calculateUnspentsForTx();
     return tx;
   }
@@ -735,6 +745,10 @@ export default class MoneroWallet {
     });
     // return processed tx
     return this.addTx(txId);
+  }
+
+  txUrl(txId) {
+    return `https://blockchair.com/monero/transaction/${txId}?from=coinwallet`;
   }
 
   exportPrivateKeys() {

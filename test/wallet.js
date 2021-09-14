@@ -10,6 +10,7 @@ const NOOP = (...args) => { console.log(args); };
 const crypto = {
   platform: 'monero',
 };
+const cache = { get: () => {}, has: () => {}, set: () => {}, unset: () => {} };
 
 async function mockRequest(config) {
   if (config.baseURL === 'node') {
@@ -55,6 +56,7 @@ describe('Wallet', () => {
         apiNode: 'node',
         apiWeb: 'web',
         crypto,
+        cache,
       });
       assert.strictEqual(wallet.isLocked, false);
     });
@@ -67,6 +69,7 @@ describe('Wallet', () => {
         apiNode: 'node',
         apiWeb: 'web',
         crypto,
+        cache,
       });
       assert.strictEqual(wallet.isLocked, true);
     });
@@ -81,6 +84,7 @@ describe('Wallet', () => {
         apiNode: 'node',
         apiWeb: 'web',
         crypto,
+        cache,
       });
       assert.strictEqual(wallet.isLocked, false);
       wallet.lock();
@@ -97,6 +101,7 @@ describe('Wallet', () => {
         apiNode: 'node',
         apiWeb: 'web',
         crypto,
+        cache,
       });
       assert.strictEqual(wallet.isLocked, true);
       wallet.unlock(RANDOM_SEED);
@@ -113,6 +118,7 @@ describe('Wallet', () => {
         apiNode: 'node',
         apiWeb: 'web',
         crypto,
+        cache,
       });
       const publicKey = wallet.publicKey();
       assert.strictEqual(publicKey, RANDOM_PUBLIC_KEY);
@@ -128,6 +134,7 @@ describe('Wallet', () => {
         apiNode: 'node',
         apiWeb: 'web',
         crypto,
+        cache,
       });
       await wallet.load();
       assert.strictEqual(wallet.balance, '0');
@@ -152,6 +159,7 @@ describe('Wallet', () => {
         apiNode: 'node',
         apiWeb: 'web',
         crypto,
+        cache,
       });
       await wallet.load();
       assert.strictEqual(wallet.balance, '13622187809001');
@@ -180,6 +188,7 @@ describe('Wallet', () => {
         apiNode: 'node',
         apiWeb: 'web',
         crypto,
+        cache,
       });
       await wallet.load();
       assert.strictEqual(wallet.balance, '13622187809001');
@@ -195,6 +204,7 @@ describe('Wallet', () => {
         apiNode: 'node',
         apiWeb: 'web',
         crypto,
+        cache,
       });
       await wallet.load();
       assert.deepStrictEqual(wallet.estimateFees('0'), [
@@ -237,6 +247,7 @@ describe('Wallet', () => {
       apiNode: 'node',
       apiWeb: 'web',
       crypto,
+      cache,
     });
     await wallet.load();
     assert.deepStrictEqual(wallet.estimateFees('0'), [
@@ -278,6 +289,7 @@ describe('Wallet', () => {
       apiNode: 'node',
       apiWeb: 'web',
       crypto,
+      cache,
     });
     await wallet.load();
     assert.deepStrictEqual(wallet.estimateFees('100000000000000'), [
@@ -306,6 +318,7 @@ describe('Wallet', () => {
         apiNode: 'node',
         apiWeb: 'web',
         crypto,
+        cache,
       });
     });
 
@@ -354,6 +367,7 @@ describe('Wallet', () => {
         apiNode: 'node',
         apiWeb: 'web',
         crypto,
+        cache,
       });
       await wallet.load();
     });
@@ -510,6 +524,7 @@ describe('Wallet', () => {
         apiNode: 'node',
         apiWeb: 'web',
         crypto,
+        cache,
       });
       await wallet.load();
       assert.strictEqual(wallet.balance, '13622187809001');
@@ -549,6 +564,7 @@ describe('Wallet', () => {
         apiNode: 'node',
         apiWeb: 'web',
         crypto,
+        cache,
       });
       await wallet.load();
       const res = await wallet.loadTxs();
@@ -566,6 +582,7 @@ describe('Wallet', () => {
         apiNode: 'node',
         apiWeb: 'web',
         crypto,
+        cache,
       });
 
       // eslint-disable-next-line max-len
