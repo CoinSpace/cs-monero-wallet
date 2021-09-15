@@ -10,7 +10,7 @@ const NOOP = (...args) => { console.log(args); };
 const crypto = {
   platform: 'monero',
 };
-const cache = { get: () => {}, has: () => {}, set: () => {}, unset: () => {} };
+const cache = { get: () => {}, set: () => {} };
 
 async function mockRequest(config) {
   if (config.baseURL === 'node') {
