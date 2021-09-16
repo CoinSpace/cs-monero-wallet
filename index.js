@@ -230,6 +230,7 @@ export default class MoneroWallet {
   }
 
   async load() {
+    this.#storage.init();
     this.#cachedKeyImages = (await this.#storage.get('keyImages')) || {};
 
     const txIds = (await this.#storage.get('txIds')) || [];

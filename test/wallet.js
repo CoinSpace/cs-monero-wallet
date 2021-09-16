@@ -11,6 +11,9 @@ const crypto = {
   platform: 'monero',
 };
 const cache = { get: () => {}, set: () => {} };
+class Storage extends Map {
+  init() {}
+}
 
 async function mockRequest(config) {
   if (config.baseURL === 'node') {
@@ -51,7 +54,7 @@ describe('Wallet', () => {
     it('with seed', () => {
       const wallet = new MoneroWallet({
         seed: RANDOM_SEED,
-        storage: new Map(),
+        storage: new Storage(),
         request: NOOP,
         apiNode: 'node',
         apiWeb: 'web',
@@ -64,7 +67,7 @@ describe('Wallet', () => {
     it('with publicKey', () => {
       const wallet = new MoneroWallet({
         publicKey: RANDOM_PUBLIC_KEY,
-        storage: new Map(),
+        storage: new Storage(),
         request: NOOP,
         apiNode: 'node',
         apiWeb: 'web',
@@ -79,7 +82,7 @@ describe('Wallet', () => {
     it('works', () => {
       const wallet = new MoneroWallet({
         seed: RANDOM_SEED,
-        storage: new Map(),
+        storage: new Storage(),
         request: NOOP,
         apiNode: 'node',
         apiWeb: 'web',
@@ -96,7 +99,7 @@ describe('Wallet', () => {
     it('works', () => {
       const wallet = new MoneroWallet({
         publicKey: RANDOM_PUBLIC_KEY,
-        storage: new Map(),
+        storage: new Storage(),
         request: NOOP,
         apiNode: 'node',
         apiWeb: 'web',
@@ -113,7 +116,7 @@ describe('Wallet', () => {
     it('key is valid', () => {
       const wallet = new MoneroWallet({
         seed: RANDOM_SEED,
-        storage: new Map(),
+        storage: new Storage(),
         request: NOOP,
         apiNode: 'node',
         apiWeb: 'web',
@@ -129,7 +132,7 @@ describe('Wallet', () => {
     it('should works with empty wallet', async () => {
       const wallet = new MoneroWallet({
         seed: RANDOM_SEED,
-        storage: new Map(),
+        storage: new Storage(),
         request: mockRequest,
         apiNode: 'node',
         apiWeb: 'web',
@@ -143,7 +146,7 @@ describe('Wallet', () => {
     it('calculates balance correct with full wallet', async () => {
       const wallet = new MoneroWallet({
         seed: RANDOM_SEED,
-        storage: new Map([[
+        storage: new Storage([[
           'txIds', [
             'a0cd9a954719e9de38dd31d59272644a310b0a85ba9618e7ffc102f38909f784',
             '01fd63eee0e247d63a01b28a36d46c6cb4597ccaa9f72f4f3b95ae4ae15bc815',
@@ -168,7 +171,7 @@ describe('Wallet', () => {
     it('calculates balance correct with locked wallet', async () => {
       const wallet = new MoneroWallet({
         publicKey: RANDOM_PUBLIC_KEY,
-        storage: new Map([[
+        storage: new Storage([[
           'txIds', [
             'a0cd9a954719e9de38dd31d59272644a310b0a85ba9618e7ffc102f38909f784',
             '01fd63eee0e247d63a01b28a36d46c6cb4597ccaa9f72f4f3b95ae4ae15bc815',
@@ -199,7 +202,7 @@ describe('Wallet', () => {
     it('should estimate correct with empty wallet', async () => {
       const wallet = new MoneroWallet({
         publicKey: RANDOM_PUBLIC_KEY,
-        storage: new Map(),
+        storage: new Storage(),
         request: mockRequest,
         apiNode: 'node',
         apiWeb: 'web',
@@ -227,7 +230,7 @@ describe('Wallet', () => {
   it('should estimate correct (value 0)', async () => {
     const wallet = new MoneroWallet({
       publicKey: RANDOM_PUBLIC_KEY,
-      storage: new Map([[
+      storage: new Storage([[
         'txIds', [
           'a0cd9a954719e9de38dd31d59272644a310b0a85ba9618e7ffc102f38909f784',
           '01fd63eee0e247d63a01b28a36d46c6cb4597ccaa9f72f4f3b95ae4ae15bc815',
@@ -269,7 +272,7 @@ describe('Wallet', () => {
   it('should estimate correct (value gt max amount)', async () => {
     const wallet = new MoneroWallet({
       publicKey: RANDOM_PUBLIC_KEY,
-      storage: new Map([[
+      storage: new Storage([[
         'txIds', [
           'a0cd9a954719e9de38dd31d59272644a310b0a85ba9618e7ffc102f38909f784',
           '01fd63eee0e247d63a01b28a36d46c6cb4597ccaa9f72f4f3b95ae4ae15bc815',
@@ -313,7 +316,7 @@ describe('Wallet', () => {
     beforeEach(() => {
       wallet = new MoneroWallet({
         publicKey: RANDOM_PUBLIC_KEY,
-        storage: new Map(),
+        storage: new Storage(),
         request: mockRequest,
         apiNode: 'node',
         apiWeb: 'web',
@@ -347,7 +350,7 @@ describe('Wallet', () => {
     beforeEach(async () => {
       wallet = new MoneroWallet({
         publicKey: RANDOM_PUBLIC_KEY,
-        storage: new Map([[
+        storage: new Storage([[
           'txIds', [
             'a0cd9a954719e9de38dd31d59272644a310b0a85ba9618e7ffc102f38909f784',
             '01fd63eee0e247d63a01b28a36d46c6cb4597ccaa9f72f4f3b95ae4ae15bc815',
@@ -504,7 +507,7 @@ describe('Wallet', () => {
     it('should create and send valid transaction', async () => {
       const wallet = new MoneroWallet({
         seed: RANDOM_SEED,
-        storage: new Map([[
+        storage: new Storage([[
           'txIds', [
             'a0cd9a954719e9de38dd31d59272644a310b0a85ba9618e7ffc102f38909f784',
             '01fd63eee0e247d63a01b28a36d46c6cb4597ccaa9f72f4f3b95ae4ae15bc815',
@@ -544,7 +547,7 @@ describe('Wallet', () => {
     it('works', async () => {
       const wallet = new MoneroWallet({
         publicKey: RANDOM_PUBLIC_KEY,
-        storage: new Map([[
+        storage: new Storage([[
           'txIds', [
             'a0cd9a954719e9de38dd31d59272644a310b0a85ba9618e7ffc102f38909f784',
             '01fd63eee0e247d63a01b28a36d46c6cb4597ccaa9f72f4f3b95ae4ae15bc815',
@@ -577,7 +580,7 @@ describe('Wallet', () => {
     it('works', () => {
       const wallet = new MoneroWallet({
         seed: RANDOM_SEED,
-        storage: new Map(),
+        storage: new Storage(),
         request: NOOP,
         apiNode: 'node',
         apiWeb: 'web',
