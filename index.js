@@ -248,6 +248,7 @@ export default class MoneroWallet {
     await this.#loadCsFee();
     this.#balance = this.#calculateBalance();
     this.#cache.set('balance', this.#balance);
+    this.#txsCursor = 0;
     this.#unspentsForTx = this.#calculateUnspentsForTx();
   }
 
