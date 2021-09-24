@@ -35,7 +35,7 @@ async function mockRequest(config) {
       };
     }
   } else {
-    if (config.url === 'api/v2/csfee') {
+    if (config.url === 'api/v3/csfee') {
       return {
         addresses: ['45vtcKT7mxmNQt4PKmpnu4WCUhBa33WBVXtQVVh61Uv1fpK78cYuRNuFD4oxGcXnJYPwFMWPhN2dbH8NTMnoCk143e4TfJJ'],
         fee: 0.0005,
