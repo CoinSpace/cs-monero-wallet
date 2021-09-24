@@ -270,9 +270,9 @@ export default class MoneroWallet {
   async #loadCsFee() {
     try {
       const result = await this.#requestWeb({
-        url: 'api/v2/csfee',
+        url: 'api/v3/csfee',
         params: {
-          crypto: 'monero',
+          crypto: 'monero@monero',
         },
         method: 'get',
         seed: 'public',
