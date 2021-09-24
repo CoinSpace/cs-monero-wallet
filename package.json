@@ -23,20 +23,10 @@
   "devDependencies": {
     "@babel/core": "^7.13.16",
     "@babel/eslint-parser": "^7.13.8",
-    "@babel/plugin-proposal-class-properties": "^7.13.0",
-    "@babel/plugin-proposal-private-methods": "^7.13.0",
-    "@babel/plugin-syntax-top-level-await": "^7.12.13",
     "axios": "^0.21.1",
     "eslint": "^7.21.0",
     "eslint-config-coinspace": "^1.1.1",
     "mocha": "^9.0.0"
-  },
-  "babel": {
-    "plugins": [
-      "@babel/plugin-syntax-top-level-await",
-      "@babel/plugin-proposal-class-properties",
-      "@babel/plugin-proposal-private-methods"
-    ]
   },
   "eslintConfig": {
     "extends": [
@@ -47,6 +37,7 @@
     },
     "parser": "@babel/eslint-parser",
     "parserOptions": {
+      "requireConfigFile": false,
       "sourceType": "module"
     },
     "overrides": [
