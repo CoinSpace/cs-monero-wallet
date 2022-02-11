@@ -322,6 +322,8 @@ export default class MoneroWallet {
       ? tx.confirmations >= this.#minConfCoinbase
       : tx.confirmations >= this.#minConf;
 
+    tx.minConf = tx.coinbase ? this.#minConfCoinbase : this.#minConf;
+
     const mainDerivation = monerolib.cryptoUtil.generateKeyDerivation(
       Buffer.from(tx.txPubKey, 'hex'),
       this.#wallet.secretViewKey
