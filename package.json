@@ -21,10 +21,7 @@
     "monerolib": "1.0.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.13.16",
-    "@babel/eslint-parser": "^7.13.8",
-    "axios": "^0.21.1",
-    "eslint": "^7.21.0",
+    "eslint": "^8.12.0",
     "eslint-config-coinspace": "^1.1.1",
     "mocha": "^9.0.0"
   },
@@ -35,8 +32,8 @@
     "env": {
       "node": true
     },
-    "parser": "@babel/eslint-parser",
     "parserOptions": {
+      "ecmaVersion": 2022,
       "requireConfigFile": false,
       "sourceType": "module"
     },
