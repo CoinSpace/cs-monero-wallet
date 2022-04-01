@@ -225,90 +225,90 @@ describe('Wallet', () => {
         },
       ]);
     });
-  });
 
-  it('should estimate correct (value 0)', async () => {
-    const wallet = new MoneroWallet({
-      publicKey: RANDOM_PUBLIC_KEY,
-      storage: new Storage([[
-        'txIds', [
-          'a0cd9a954719e9de38dd31d59272644a310b0a85ba9618e7ffc102f38909f784',
-          '01fd63eee0e247d63a01b28a36d46c6cb4597ccaa9f72f4f3b95ae4ae15bc815',
-          '94d1ec6fa674d88656eb72a278bf597f0e48720f7e95e463d39e21f5c0d281a1',
-          'b973adafe966518e5ef69b69ac2f52048df2273fb220321dc604e75b5f9a3678',
-          '8f5fb6b4f4c3c5a902e4ca42a7f4c4f0bdb9d61d3634ab5b46a6217f1b8b04ad',
-          'cc792ff7e5616ca6af4a1f0d520a9d7726cc486af44d13e3a26dbbf384253931',
-          '939fc6c6f172e4724e16e47ad08d9900d0e873a0d6fb969c63c86d2af1b27402',
-          'cc007da08e61ff69045161e34f4fc7c5b3c5b6823c013bfcd23f8ef4202aa178',
-        ]], [
-        'keyImages', {
-          // eslint-disable-next-line max-len
-          '2723afddf8797ca33aa8ccb9a2a52fe4f9f9102127b0038df96d130892154f3a-0-83dJgBZoaky1976Hb2ocaEDn4zQDVgexoWKWxcFEaofAZMkR2Z3zETbA2pFaaMjZ6PCBwPiMvhaKTAcpB37z5fgFJLcNJHB': '57bc60fb31368ec2fe9e2b49c7e1d1cedfe88c93c6cca1449b9009574f36d28a',
+    it('should estimate correct (value 0)', async () => {
+      const wallet = new MoneroWallet({
+        publicKey: RANDOM_PUBLIC_KEY,
+        storage: new Storage([[
+          'txIds', [
+            'a0cd9a954719e9de38dd31d59272644a310b0a85ba9618e7ffc102f38909f784',
+            '01fd63eee0e247d63a01b28a36d46c6cb4597ccaa9f72f4f3b95ae4ae15bc815',
+            '94d1ec6fa674d88656eb72a278bf597f0e48720f7e95e463d39e21f5c0d281a1',
+            'b973adafe966518e5ef69b69ac2f52048df2273fb220321dc604e75b5f9a3678',
+            '8f5fb6b4f4c3c5a902e4ca42a7f4c4f0bdb9d61d3634ab5b46a6217f1b8b04ad',
+            'cc792ff7e5616ca6af4a1f0d520a9d7726cc486af44d13e3a26dbbf384253931',
+            '939fc6c6f172e4724e16e47ad08d9900d0e873a0d6fb969c63c86d2af1b27402',
+            'cc007da08e61ff69045161e34f4fc7c5b3c5b6823c013bfcd23f8ef4202aa178',
+          ]], [
+          'keyImages', {
+            // eslint-disable-next-line max-len
+            '2723afddf8797ca33aa8ccb9a2a52fe4f9f9102127b0038df96d130892154f3a-0-83dJgBZoaky1976Hb2ocaEDn4zQDVgexoWKWxcFEaofAZMkR2Z3zETbA2pFaaMjZ6PCBwPiMvhaKTAcpB37z5fgFJLcNJHB': '57bc60fb31368ec2fe9e2b49c7e1d1cedfe88c93c6cca1449b9009574f36d28a',
+          },
+        ]]),
+        request: mockRequest,
+        apiNode: 'node',
+        apiWeb: 'web',
+        crypto,
+        cache,
+      });
+      await wallet.load();
+      assert.deepStrictEqual(wallet.estimateFees('0'), [
+        {
+          name: 'default',
+          default: true,
+          estimate: '859220209',
+          maxAmount: '8616770013995',
         },
-      ]]),
-      request: mockRequest,
-      apiNode: 'node',
-      apiWeb: 'web',
-      crypto,
-      cache,
+        {
+          name: 'fastest',
+          default: false,
+          estimate: '13314680209',
+          maxAmount: '8590157480261',
+        },
+      ]);
     });
-    await wallet.load();
-    assert.deepStrictEqual(wallet.estimateFees('0'), [
-      {
-        name: 'default',
-        default: true,
-        estimate: '859220209',
-        maxAmount: '8616770013995',
-      },
-      {
-        name: 'fastest',
-        default: false,
-        estimate: '13314680209',
-        maxAmount: '8590157480261',
-      },
-    ]);
-  });
 
-  it('should estimate correct (value gt max amount)', async () => {
-    const wallet = new MoneroWallet({
-      publicKey: RANDOM_PUBLIC_KEY,
-      storage: new Storage([[
-        'txIds', [
-          'a0cd9a954719e9de38dd31d59272644a310b0a85ba9618e7ffc102f38909f784',
-          '01fd63eee0e247d63a01b28a36d46c6cb4597ccaa9f72f4f3b95ae4ae15bc815',
-          '94d1ec6fa674d88656eb72a278bf597f0e48720f7e95e463d39e21f5c0d281a1',
-          'b973adafe966518e5ef69b69ac2f52048df2273fb220321dc604e75b5f9a3678',
-          '8f5fb6b4f4c3c5a902e4ca42a7f4c4f0bdb9d61d3634ab5b46a6217f1b8b04ad',
-          'cc792ff7e5616ca6af4a1f0d520a9d7726cc486af44d13e3a26dbbf384253931',
-          '939fc6c6f172e4724e16e47ad08d9900d0e873a0d6fb969c63c86d2af1b27402',
-          'cc007da08e61ff69045161e34f4fc7c5b3c5b6823c013bfcd23f8ef4202aa178',
-        ]], [
-        'keyImages', {
-          // eslint-disable-next-line max-len
-          '2723afddf8797ca33aa8ccb9a2a52fe4f9f9102127b0038df96d130892154f3a-0-83dJgBZoaky1976Hb2ocaEDn4zQDVgexoWKWxcFEaofAZMkR2Z3zETbA2pFaaMjZ6PCBwPiMvhaKTAcpB37z5fgFJLcNJHB': '57bc60fb31368ec2fe9e2b49c7e1d1cedfe88c93c6cca1449b9009574f36d28a',
+    it('should estimate correct (value gt max amount)', async () => {
+      const wallet = new MoneroWallet({
+        publicKey: RANDOM_PUBLIC_KEY,
+        storage: new Storage([[
+          'txIds', [
+            'a0cd9a954719e9de38dd31d59272644a310b0a85ba9618e7ffc102f38909f784',
+            '01fd63eee0e247d63a01b28a36d46c6cb4597ccaa9f72f4f3b95ae4ae15bc815',
+            '94d1ec6fa674d88656eb72a278bf597f0e48720f7e95e463d39e21f5c0d281a1',
+            'b973adafe966518e5ef69b69ac2f52048df2273fb220321dc604e75b5f9a3678',
+            '8f5fb6b4f4c3c5a902e4ca42a7f4c4f0bdb9d61d3634ab5b46a6217f1b8b04ad',
+            'cc792ff7e5616ca6af4a1f0d520a9d7726cc486af44d13e3a26dbbf384253931',
+            '939fc6c6f172e4724e16e47ad08d9900d0e873a0d6fb969c63c86d2af1b27402',
+            'cc007da08e61ff69045161e34f4fc7c5b3c5b6823c013bfcd23f8ef4202aa178',
+          ]], [
+          'keyImages', {
+            // eslint-disable-next-line max-len
+            '2723afddf8797ca33aa8ccb9a2a52fe4f9f9102127b0038df96d130892154f3a-0-83dJgBZoaky1976Hb2ocaEDn4zQDVgexoWKWxcFEaofAZMkR2Z3zETbA2pFaaMjZ6PCBwPiMvhaKTAcpB37z5fgFJLcNJHB': '57bc60fb31368ec2fe9e2b49c7e1d1cedfe88c93c6cca1449b9009574f36d28a',
+          },
+        ]]),
+        request: mockRequest,
+        apiNode: 'node',
+        apiWeb: 'web',
+        crypto,
+        cache,
+      });
+      await wallet.load();
+      assert.deepStrictEqual(wallet.estimateFees('100000000000000'), [
+        {
+          name: 'default',
+          default: true,
+          estimate: '51109410000',
+          maxAmount: '8616770013995',
         },
-      ]]),
-      request: mockRequest,
-      apiNode: 'node',
-      apiWeb: 'web',
-      crypto,
-      cache,
+        {
+          name: 'fastest',
+          default: false,
+          estimate: '77735250000',
+          maxAmount: '8590157480261',
+        },
+      ]);
     });
-    await wallet.load();
-    assert.deepStrictEqual(wallet.estimateFees('100000000000000'), [
-      {
-        name: 'default',
-        default: true,
-        estimate: '51109410000',
-        maxAmount: '8616770013995',
-      },
-      {
-        name: 'fastest',
-        default: false,
-        estimate: '77735250000',
-        maxAmount: '8590157480261',
-      },
-    ]);
   });
 
   describe('getNextAddress', () => {
