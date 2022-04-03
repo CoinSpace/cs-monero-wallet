@@ -208,12 +208,11 @@ export default class MoneroWallet {
   #initMoneroCoreJS() {
     if (!this.#moneroCoreJS) {
       this.#moneroCoreJS = import(
-          /* webpackChunkName: '@coinspace/monero-core-js' */
-          '@coinspace/monero-core-js'
-        )
-        .then((moneroCoreJS) => {
-          return moneroCoreJS.default(this.#wasmPath);
-        });
+        /* webpackChunkName: '@coinspace/monero-core-js' */
+        '@coinspace/monero-core-js'
+      ).then((moneroCoreJS) => {
+        return moneroCoreJS.default(this.#wasmPath);
+      });
     }
     return this.#moneroCoreJS;
   }
