@@ -5,7 +5,7 @@ import BigNumber from 'bignumber.js';
 import { calculateCsFee, reverseCsFee } from './lib/fee.js';
 
 const TXS_CHUNK = 50;
-const RING_COUNT = 11;
+const RING_COUNT = 16;
 
 export default class MoneroWallet {
   #wallet;
@@ -304,7 +304,7 @@ export default class MoneroWallet {
     return txs.flat().sort((a, b) => a.time - b.time);
   }
 
-  async #loadRandomOutputs(count=11, height) {
+  async #loadRandomOutputs(count=16, height) {
     return this.#requestNode({
       url: 'api/v1/outputs/random',
       params: {
