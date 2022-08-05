@@ -214,13 +214,13 @@ describe('Wallet', () => {
         {
           name: 'default',
           default: true,
-          estimate: '859220209',
+          estimate: '819780209',
           maxAmount: '0',
         },
         {
           name: 'fastest',
           default: false,
-          estimate: '13314680209',
+          estimate: '12328690209',
           maxAmount: '0',
         },
       ]);
@@ -256,14 +256,14 @@ describe('Wallet', () => {
         {
           name: 'default',
           default: true,
-          estimate: '859220209',
-          maxAmount: '8616770013995',
+          estimate: '819780209',
+          maxAmount: '8616809424289',
         },
         {
           name: 'fastest',
           default: false,
-          estimate: '13314680209',
-          maxAmount: '8590157480261',
+          estimate: '12328690209',
+          maxAmount: '8591142977513',
         },
       ]);
     });
@@ -298,14 +298,14 @@ describe('Wallet', () => {
         {
           name: 'default',
           default: true,
-          estimate: '51109410000',
-          maxAmount: '8616770013995',
+          estimate: '51069980000',
+          maxAmount: '8616809424289',
         },
         {
           name: 'fastest',
           default: false,
-          estimate: '77735250000',
-          maxAmount: '8590157480261',
+          estimate: '76749260000',
+          maxAmount: '8591142977513',
         },
       ]);
     });
