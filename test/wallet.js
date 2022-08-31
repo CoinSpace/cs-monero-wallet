@@ -214,13 +214,13 @@ describe('Wallet', () => {
         {
           name: 'default',
           default: true,
-          estimate: '819780209',
+          estimate: '859220209',
           maxAmount: '0',
         },
         {
           name: 'fastest',
           default: false,
-          estimate: '12328690209',
+          estimate: '13314680209',
           maxAmount: '0',
         },
       ]);
@@ -256,14 +256,14 @@ describe('Wallet', () => {
         {
           name: 'default',
           default: true,
-          estimate: '819780209',
-          maxAmount: '8616809424289',
+          estimate: '859220209',
+          maxAmount: '8616572912545',
         },
         {
           name: 'fastest',
           default: false,
-          estimate: '12328690209',
-          maxAmount: '8591142977513',
+          estimate: '13314680209',
+          maxAmount: '8585230013995',
         },
       ]);
     });
@@ -298,14 +298,14 @@ describe('Wallet', () => {
         {
           name: 'default',
           default: true,
-          estimate: '51069980000',
-          maxAmount: '8616809424289',
+          estimate: '51306610000',
+          maxAmount: '8616572912545',
         },
         {
           name: 'fastest',
           default: false,
-          estimate: '76749260000',
-          maxAmount: '8591142977513',
+          estimate: '82665180000',
+          maxAmount: '8585230013995',
         },
       ]);
     });
@@ -451,7 +451,7 @@ describe('Wallet', () => {
       const tx = await wallet.createTx(
         '46a8AU2ZbHoNZVHjByoQgQAxaFxX9bCkzgqQLZ7j6r3ugUPGYpHf83X9PXHyvyX5A9XJiG58q4RXKhgyQVHojQkNKUJzBsX',
         '8500000000000',
-        '5241330000'
+        '5399090000'
       );
       assert.strictEqual(tx.sources.length, 5);
       assert.strictEqual(tx.sources[0].amount, '3000000000000');
@@ -469,7 +469,7 @@ describe('Wallet', () => {
         address: '45vtcKT7mxmNQt4PKmpnu4WCUhBa33WBVXtQVVh61Uv1fpK78cYuRNuFD4oxGcXnJYPwFMWPhN2dbH8NTMnoCk143e4TfJJ',
       }, {
         // change
-        amount: '116946479000',
+        amount: '116788719000',
         address: '47LuCrMtrkiWk22fh1osk1dfKAuwAtr145syRSJfytJLEKuugyCJc2cAXhqBymbMAahufE3ngnqZ93KV6MMQgD7ZH3MVHwV',
       }]);
     });
@@ -477,8 +477,8 @@ describe('Wallet', () => {
     it('should create valid transaction with max amount', async () => {
       const tx = await wallet.createTx(
         '46a8AU2ZbHoNZVHjByoQgQAxaFxX9bCkzgqQLZ7j6r3ugUPGYpHf83X9PXHyvyX5A9XJiG58q4RXKhgyQVHojQkNKUJzBsX',
-        '8616770013995',
-        '5417795006'
+        '8616572912545',
+        '5614896456'
       );
       assert.strictEqual(tx.sources.length, 6);
       assert.strictEqual(tx.sources[0].amount, '3000000000000');
@@ -489,11 +489,11 @@ describe('Wallet', () => {
       assert.strictEqual(tx.sources[5].amount, '1');
       assert.deepStrictEqual(tx.destinations, [{
         // destinaton
-        amount: '8616770013995',
+        amount: '8616572912545',
         address: '46a8AU2ZbHoNZVHjByoQgQAxaFxX9bCkzgqQLZ7j6r3ugUPGYpHf83X9PXHyvyX5A9XJiG58q4RXKhgyQVHojQkNKUJzBsX',
       }, {
         // fee
-        amount: '4308385006',
+        amount: '4308286456',
         address: '45vtcKT7mxmNQt4PKmpnu4WCUhBa33WBVXtQVVh61Uv1fpK78cYuRNuFD4oxGcXnJYPwFMWPhN2dbH8NTMnoCk143e4TfJJ',
       }, {
         // change

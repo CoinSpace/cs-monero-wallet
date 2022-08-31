@@ -6,6 +6,7 @@ import { calculateCsFee, reverseCsFee } from './lib/fee.js';
 
 const TXS_CHUNK = 50;
 const RING_COUNT = 16;
+const MIXIN = RING_COUNT - 1;
 
 export default class MoneroWallet {
   #wallet;
@@ -529,7 +530,7 @@ export default class MoneroWallet {
     const available = utxos
       .reduce((available, item) => available.plus(new BigNumber(item.amount, 10)), new BigNumber(0));
     // 3 outputs with change
-    const minerFee = new BigNumber(monerolib.tx.estimateFee(utxos.length, 10, 3, this.#txExtraSize,
+    const minerFee = new BigNumber(monerolib.tx.estimateFee(utxos.length, MIXIN, 3, this.#txExtraSize,
       this.#baseFee, feeRate.feeMultiplier, this.#feeQuantizationMask), 10);
     if (available.isLessThanOrEqualTo(minerFee)) {
       return new BigNumber(0);
@@ -563,7 +564,7 @@ export default class MoneroWallet {
     // estimate fee for usual tx
     if (utxos.length === 0) {
       // dummy 1 input
-      const minerFee = new BigNumber(monerolib.tx.estimateFee(1, 10, 3, this.#txExtraSize,
+      const minerFee = new BigNumber(monerolib.tx.estimateFee(1, MIXIN, 3, this.#txExtraSize,
         this.#baseFee, feeRate.feeMultiplier, this.#feeQuantizationMask), 10);
       const estimate = csFee.plus(minerFee);
       return {
@@ -577,7 +578,7 @@ export default class MoneroWallet {
 
     // estimate fee to clear wallet
     if (value.isEqualTo(maxAmount)) {
-      const minerFee = new BigNumber(monerolib.tx.estimateFee(utxos.length, 10, 3, this.#txExtraSize,
+      const minerFee = new BigNumber(monerolib.tx.estimateFee(utxos.length, MIXIN, 3, this.#txExtraSize,
         this.#baseFee, feeRate.feeMultiplier, this.#feeQuantizationMask), 10);
       const estimate = csFee.plus(minerFee);
       return {
@@ -598,7 +599,7 @@ export default class MoneroWallet {
         continue;
       } else {
         // fee with change: 3 outputs
-        let minerFee = new BigNumber(monerolib.tx.estimateFee(sources.length, 10, 3, this.#txExtraSize,
+        let minerFee = new BigNumber(monerolib.tx.estimateFee(sources.length, MIXIN, 3, this.#txExtraSize,
           this.#baseFee, feeRate.feeMultiplier, this.#feeQuantizationMask), 10);
         let estimate = csFee.plus(minerFee);
         const total = value.plus(estimate);
@@ -621,7 +622,7 @@ export default class MoneroWallet {
     }
     // TODO handle error case with custom fee rate in future
     //throw new Error(`fee could not be estimated for value ${value}`);
-    const minerFee = new BigNumber(monerolib.tx.estimateFee(utxos.length, 10, 3, this.#txExtraSize,
+    const minerFee = new BigNumber(monerolib.tx.estimateFee(utxos.length, MIXIN, 3, this.#txExtraSize,
       this.#baseFee, feeRate.feeMultiplier, this.#feeQuantizationMask), 10);
     const estimate = csFee.plus(minerFee);
     return {
@@ -697,7 +698,7 @@ export default class MoneroWallet {
     }
 
     // minimum miner fee
-    const minerFee = new BigNumber(monerolib.tx.estimateFee(sources.length, 10, 3, this.#txExtraSize,
+    const minerFee = new BigNumber(monerolib.tx.estimateFee(sources.length, MIXIN, 3, this.#txExtraSize,
       this.#baseFee, 1, this.#feeQuantizationMask), 10);
 
     if (totalFee.minus(csFee).isLessThan(minerFee)) {
