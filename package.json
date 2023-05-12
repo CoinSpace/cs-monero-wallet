@@ -7,7 +7,7 @@
   "main": "./index.js",
   "type": "module",
   "scripts": {
-    "test": "mocha --no-experimental-fetch",
+    "test": "mocha -- --no-experimental-fetch",
     "lint": "eslint index.js lib/ test/"
   },
   "repository": {
@@ -16,37 +16,28 @@
   },
   "dependencies": {
     "@coinspace/monero-core-js": "0.2.0",
-    "bignumber.js": "^9.0.1",
-    "hdkey": "^2.0.1",
+    "@scure/bip32": "^1.3.0",
+    "cs-common": "file:../CoinSpaceV6/cs-common",
     "monerolib": "1.1.4"
   },
   "devDependencies": {
-    "eslint": "^8.12.0",
-    "eslint-config-coinspace": "^1.1.1",
-    "mocha": "^9.0.0"
+    "eslint": "^8.40.0",
+    "eslint-config-coinspace": "^2.0.0",
+    "mocha": "^10.0.0",
+    "sinon": "^15.0.4"
   },
   "eslintConfig": {
     "extends": [
       "coinspace"
     ],
     "env": {
-      "node": true
+      "node": true,
+      "browser": true,
+      "mocha": true
     },
     "parserOptions": {
-      "ecmaVersion": 2022,
       "requireConfigFile": false,
       "sourceType": "module"
-    },
-    "overrides": [
-      {
-        "files": [
-          "*.test.js",
-          "test/*"
-        ],
-        "env": {
-          "mocha": true
-        }
-      }
-    ]
+    }
   }
 }
