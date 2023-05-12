@@ -199,8 +199,124 @@ describe('MoneroWallet', () => {
     });
   });
 
-  describe.skip('addTransaction', () => {
-    // TODO
+  describe('addTransaction', () => {
+    it('should add valid transaction', async () => {
+      sinon.stub(defaultOptions.account, 'request')
+        .withArgs({
+          seed: 'device',
+          method: 'GET',
+          url: `api/v1/txs/${TX_IDS.join(',')}`,
+          baseURL: 'node',
+        }).resolves(transactions(TX_IDS))
+        .withArgs({
+          seed: 'device',
+          method: 'GET',
+          url: 'api/v1/txs/e28464110a36f76bff7e2524a74403936c244a91773d80be3e7fde12efe45b1a',
+          baseURL: 'node',
+        }).resolves(transactions(['e28464110a36f76bff7e2524a74403936c244a91773d80be3e7fde12efe45b1a']));
+      const wallet = new Wallet({
+        ...defaultOptions,
+      });
+      await wallet.open(RANDOM_PUBLIC_KEY);
+      await wallet.load();
+
+      await wallet.addTransaction('e28464110a36f76bff7e2524a74403936c244a91773d80be3e7fde12efe45b1a', RANDOM_SEED);
+      assert.equal(wallet.balance.value, 9_604261829001n);
+    });
+
+    it('should not add transaction with invalid ID', async () => {
+      sinon.stub(defaultOptions.account, 'request')
+        .withArgs({
+          seed: 'device',
+          method: 'GET',
+          url: `api/v1/txs/${TX_IDS.join(',')}`,
+          baseURL: 'node',
+        }).resolves(transactions(TX_IDS));
+      const wallet = new Wallet({
+        ...defaultOptions,
+      });
+      await wallet.open(RANDOM_PUBLIC_KEY);
+      await wallet.load();
+
+      await assert.rejects(async () => {
+        await wallet.addTransaction('foobar', RANDOM_SEED);
+      }, {
+        name: 'InvalidTransactionIDError',
+        message: 'Invalid transaction ID: "foobar"',
+      });
+    });
+
+    it('should not add already added transaction', async () => {
+      sinon.stub(defaultOptions.account, 'request')
+        .withArgs({
+          seed: 'device',
+          method: 'GET',
+          url: `api/v1/txs/${TX_IDS.join(',')}`,
+          baseURL: 'node',
+        }).resolves(transactions(TX_IDS));
+      const wallet = new Wallet({
+        ...defaultOptions,
+      });
+      await wallet.open(RANDOM_PUBLIC_KEY);
+      await wallet.load();
+
+      await assert.rejects(async () => {
+        await wallet.addTransaction('b973adafe966518e5ef69b69ac2f52048df2273fb220321dc604e75b5f9a3678', RANDOM_SEED);
+      }, {
+        name: 'TransactionAlreadyAddedError',
+        message: 'Transaction already added ID: "b973adafe966518e5ef69b69ac2f52048df2273fb220321dc604e75b5f9a3678"',
+      });
+    });
+
+    it('should not add unknown transaction', async () => {
+      sinon.stub(defaultOptions.account, 'request')
+        .withArgs({
+          seed: 'device',
+          method: 'GET',
+          url: `api/v1/txs/${TX_IDS.join(',')}`,
+          baseURL: 'node',
+        }).resolves(transactions(TX_IDS));
+      const wallet = new Wallet({
+        ...defaultOptions,
+      });
+      await wallet.open(RANDOM_PUBLIC_KEY);
+      await wallet.load();
+
+      await assert.rejects(async () => {
+        await wallet.addTransaction('a973adafe966518e5ef69b69ac2f52048df2273fb220321dc604e75b5f9a3678', RANDOM_SEED);
+      }, {
+        name: 'UnknownTransactionError',
+        message: 'Unknown transaction ID: "a973adafe966518e5ef69b69ac2f52048df2273fb220321dc604e75b5f9a3678"',
+      });
+    });
+
+    it('should not add not own transaction', async () => {
+      sinon.stub(defaultOptions.account, 'request')
+        .withArgs({
+          seed: 'device',
+          method: 'GET',
+          url: `api/v1/txs/${TX_IDS.join(',')}`,
+          baseURL: 'node',
+        }).resolves(transactions(TX_IDS))
+        .withArgs({
+          seed: 'device',
+          method: 'GET',
+          url: 'api/v1/txs/9a2b897624f9c1e37137511ddfa43944f5ed56cbf4f3cfb819b4d2f081c44848',
+          baseURL: 'node',
+        }).resolves(transactions(['9a2b897624f9c1e37137511ddfa43944f5ed56cbf4f3cfb819b4d2f081c44848']))
+      const wallet = new Wallet({
+        ...defaultOptions,
+      });
+      await wallet.open(RANDOM_PUBLIC_KEY);
+      await wallet.load();
+
+      await assert.rejects(async () => {
+        await wallet.addTransaction('9a2b897624f9c1e37137511ddfa43944f5ed56cbf4f3cfb819b4d2f081c44848', RANDOM_SEED);
+      }, {
+        name: 'NotYourTransactionError',
+        message: 'Not your transaction ID: "9a2b897624f9c1e37137511ddfa43944f5ed56cbf4f3cfb819b4d2f081c44848"',
+      });
+    });
   });
 
   describe('getPublicKey', () => {

@@ -992,5 +992,105 @@
     "time": 1623245903,
     "csfee": "2000000000",
     "confirmations": 0
+  },
+  {
+    "txId": "9a2b897624f9c1e37137511ddfa43944f5ed56cbf4f3cfb819b4d2f081c44848",
+    "txPubKey": "a9a252a5b20696ca1065a8ab133a380132de131833b3b5bf276178a9ea28ed35",
+    "encryptedPaymentId": "128355240c1e0755",
+    "fee": "14440000",
+    "ins": [
+      {
+        "index": 0,
+        "keyImage": "1e6e446678704e3e422a9713712fd8a5821ad41e58ed56601b2b50a836d2d1d2",
+        "keyOutputs": [
+          {
+            "txId": "bdefab72239d74d0f57baec37f519223767a8aa2639180f566d3edf8a992020a",
+            "targetKey": "02333fb22e84952b2c23ff9e52c0c8dc7b75f572b8398edd485507b6a8bef204"
+          },
+          {
+            "txId": "9b377f41ca9f73201656da883facf79db22083e96b02cebc8104a2a9135cb2ea",
+            "targetKey": "9b122ece742415113c481575a5c0219354cac3b3923d07d52843dd610f41f421"
+          },
+          {
+            "txId": "de48218e0d6162b39248d2a7cd8c6e60389ca95774df71b12df23def94f1b365",
+            "targetKey": "f8929de2064529257747e564f277ca72623f08a35680a70130a01a2229e84ed6"
+          },
+          {
+            "txId": "c786b0a09cd3e14593882ceaba57e24967508b8606858cc7605f4ba04c39268a",
+            "targetKey": "b8bae97aa5f20cd5a52ace237a9a86ea10ec3da502653bfb4cf138c802b3c982"
+          },
+          {
+            "txId": "337e00c3051b48342cfdf378356e60de024fcb5e7fa4faa79505e5800938b119",
+            "targetKey": "f41f973fd498aabd0e65ca913903337c42aee5e25edac3181c3b8afc60f73bdb"
+          },
+          {
+            "txId": "4c959bf6b26dbbceb02c49f87191fafcbd2e04d197c0e863df80c1fc5e286d84",
+            "targetKey": "23ee30481be05cf0467ff6bf0cde8f740491016c9e50df95b8066feb251e84aa"
+          },
+          {
+            "txId": "527419b3da9f22b5bb7454f7e634c9af8007dd539f645a37513a24a0f2177079",
+            "targetKey": "0bb0481b2ae9df6cd9c987889f52130b2da1a323edaf40eb936d97933e8335e4"
+          },
+          {
+            "txId": "a3c70a3144b99666abcd28a60ac41a468c3f2652a1584d3f66795fb95fcae80b",
+            "targetKey": "91a3ad4381c16858eceb7c788271efef199cdd820fdd904ccddf554ac7337021"
+          },
+          {
+            "txId": "42743b62911cd80ea26555a55f486c938a6db5e547ff0f9834c25ca2a53a397b",
+            "targetKey": "f39ba7886028f761de884b89586f2cae24fc498a725454729e1b8976d95f986c"
+          },
+          {
+            "txId": "0e17fb1da905a81a9711a1aa230d186b7a9c5f196ef8960a0a123a78da893b8d",
+            "targetKey": "d8386ef97921cc6916cd82dde3463b354ea4c0e0c15636856eb2de2323dc3617"
+          },
+          {
+            "txId": "20e6c187b364838af764a1a1657bd375df2bc26555bb80475a56d67854ec0a8d",
+            "targetKey": "40254bb21f048f88e35ce6defcab21024792d925a63a70ae5e17402977936f8f"
+          }
+        ]
+      }
+    ],
+    "outs": [
+      {
+        "targetKey": "6b4826953eeeb3a094d67f7f3cbb480e864b5b7900c4e40bf9b4f77297103285",
+        "index": 0,
+        "globalIndex": 34354736,
+        "outPk": "0f0b8f539bb18b41ca92c81cd0df87dcc8c57584fd865425ce7b7cb8cec95ae3",
+        "ecdhInfoAmount": "771748d259d3347d",
+        "ecdhInfoMask": "",
+        "amount": "",
+        "rctType": 5,
+        "height": 2390957,
+        "additionalPubKey": ""
+      },
+      {
+        "targetKey": "afa756746f1118d26b15f719f6d74b22227229fe404390eb1452392e71569d9d",
+        "index": 1,
+        "globalIndex": 34354737,
+        "outPk": "e08508742a9acbb973b204c6ed33627f942c218c95f43ab2b333500ceaeb6cc6",
+        "ecdhInfoAmount": "35e48f3af7cd7617",
+        "ecdhInfoMask": "",
+        "amount": "",
+        "rctType": 5,
+        "height": 2390957,
+        "additionalPubKey": ""
+      },
+      {
+        "targetKey": "2c5c3e67d8ed0b637293c756296c24f659f11a1c5a1b94f0dc4223567035fedc",
+        "index": 2,
+        "globalIndex": 34354738,
+        "outPk": "84cedbe61c0c6f77fb02f0d4b647cc45c1565703320f35b800684cfed1af4355",
+        "ecdhInfoAmount": "92df8c1f2e0b7848",
+        "ecdhInfoMask": "",
+        "amount": "",
+        "rctType": 5,
+        "height": 2390957,
+        "additionalPubKey": ""
+      }
+    ],
+    "coinbase": false,
+    "time": 1624625875,
+    "csfee": "1480750246",
+    "confirmations": 493303
   }
 ]

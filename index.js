@@ -1,7 +1,7 @@
+export { default } from './lib/wallet.js';
 export {
-  default,
   InvalidTransactionIDError,
   TransactionAlreadyAddedError,
   UnknownTransactionError,
   NotYourTransactionError,
-} from './lib/wallet.js';
+} from './lib/errors.js';
