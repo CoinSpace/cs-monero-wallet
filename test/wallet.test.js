@@ -303,7 +303,7 @@ describe('MoneroWallet', () => {
           method: 'GET',
           url: 'api/v1/txs/9a2b897624f9c1e37137511ddfa43944f5ed56cbf4f3cfb819b4d2f081c44848',
           baseURL: 'node',
-        }).resolves(transactions(['9a2b897624f9c1e37137511ddfa43944f5ed56cbf4f3cfb819b4d2f081c44848']))
+        }).resolves(transactions(['9a2b897624f9c1e37137511ddfa43944f5ed56cbf4f3cfb819b4d2f081c44848']));
       const wallet = new Wallet({
         ...defaultOptions,
       });

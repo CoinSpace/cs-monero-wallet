@@ -1,4 +1,4 @@
-export { default } from './lib/wallet.js';
+export { default } from './lib/MoneroWallet.js';
 export {
   InvalidTransactionIDError,
   TransactionAlreadyAddedError,
