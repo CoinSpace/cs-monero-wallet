@@ -3,7 +3,7 @@ import assert from 'assert/strict';
 import fs from 'fs/promises';
 import sinon from 'sinon';
 
-import { Amount } from 'cs-common';
+import { Amount } from '@coinspace/cs-common';
 import Wallet from '../index.js';
 
 const RANDOM_SEED = Buffer.from('7363412d7c3e2041e5da425532915d4c003bc601ba0380c7c22ea3d90dc6e1937a575e8aa4dc64a678419b04507adeab65f028c6f2de0dfbd953dc3a0824213d', 'hex');
@@ -117,7 +117,7 @@ describe('MoneroWallet', () => {
         await wallet.create();
       }, {
         name: 'TypeError',
-        message: 'seed must be an instance of Buffer, undefined provided',
+        message: 'seed must be an instance of Uint8Array or Buffer, undefined provided',
       });
     });
   });
