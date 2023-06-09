@@ -4,8 +4,12 @@
   "description": "Monero Wallet for Coin app",
   "author": "Coin Crypto Wallet <support@coin.space> (https://coin.space/)",
   "license": "MIT",
-  "main": "./index.js",
   "type": "module",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./symbols": "./lib/symbols.js"
+  },
   "scripts": {
     "test": "mocha -- --no-experimental-fetch",
     "lint": "eslint index.js lib/ test/"
