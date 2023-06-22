@@ -75,7 +75,6 @@ describe('MoneroWallet', () => {
           getPrice() { return 150; },
         },
       },
-      apiWeb: 'web',
       apiNode: 'node',
       storage: new Storage([[
         'txIds', TX_IDS,
@@ -429,7 +428,6 @@ describe('MoneroWallet', () => {
             method: 'GET',
             url: 'api/v4/csfee',
             params: { crypto: 'monero@monero' },
-            baseURL: 'web',
           }).resolves(CS_FEE);
         wallet = new Wallet({
           ...defaultOptions,
@@ -522,7 +520,6 @@ describe('MoneroWallet', () => {
           method: 'GET',
           url: 'api/v4/csfee',
           params: { crypto: 'monero@monero' },
-          baseURL: 'web',
         }).resolves(CS_FEE);
       wallet = new Wallet({
         ...defaultOptions,
@@ -569,7 +566,6 @@ describe('MoneroWallet', () => {
           method: 'GET',
           url: 'api/v4/csfee',
           params: { crypto: 'monero@monero' },
-          baseURL: 'web',
         }).resolves(CS_FEE);
       wallet = new Wallet({
         ...defaultOptions,
@@ -646,7 +642,6 @@ describe('MoneroWallet', () => {
           method: 'GET',
           url: 'api/v4/csfee',
           params: { crypto: 'monero@monero' },
-          baseURL: 'web',
         }).resolves(CS_FEE);
       const wallet = new Wallet({
         ...defaultOptions,
