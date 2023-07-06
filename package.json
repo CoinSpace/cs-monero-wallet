@@ -8,7 +8,8 @@
   "main": "./index.js",
   "exports": {
     ".": "./index.js",
-    "./symbols": "./lib/symbols.js"
+    "./symbols": "./lib/symbols.js",
+    "./errors": "./lib/errors.js"
   },
   "scripts": {
     "test": "mocha -- --no-experimental-fetch",
