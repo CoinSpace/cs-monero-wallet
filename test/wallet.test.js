@@ -250,7 +250,7 @@ describe('MoneroWallet', () => {
       await wallet.load();
 
       await assert.rejects(async () => {
-        await wallet.addTransaction('foobar', RANDOM_SEED);
+        await wallet.validateTransaction('foobar', RANDOM_SEED);
       }, {
         name: 'InvalidTransactionIDError',
         message: 'Invalid transaction ID: "foobar"',
@@ -272,7 +272,7 @@ describe('MoneroWallet', () => {
       await wallet.load();
 
       await assert.rejects(async () => {
-        await wallet.addTransaction('b973adafe966518e5ef69b69ac2f52048df2273fb220321dc604e75b5f9a3678', RANDOM_SEED);
+        await wallet.validateTransaction('b973adafe966518e5ef69b69ac2f52048df2273fb220321dc604e75b5f9a3678', RANDOM_SEED);
       }, {
         name: 'TransactionAlreadyAddedError',
         message: 'Transaction already added ID: "b973adafe966518e5ef69b69ac2f52048df2273fb220321dc604e75b5f9a3678"',
@@ -294,7 +294,7 @@ describe('MoneroWallet', () => {
       await wallet.load();
 
       await assert.rejects(async () => {
-        await wallet.addTransaction('a973adafe966518e5ef69b69ac2f52048df2273fb220321dc604e75b5f9a3678', RANDOM_SEED);
+        await wallet.validateTransaction('a973adafe966518e5ef69b69ac2f52048df2273fb220321dc604e75b5f9a3678', RANDOM_SEED);
       }, {
         name: 'UnknownTransactionError',
         message: 'Unknown transaction ID: "a973adafe966518e5ef69b69ac2f52048df2273fb220321dc604e75b5f9a3678"',
