@@ -196,6 +196,18 @@ describe('MoneroWallet', () => {
       assert.equal(wallet.balance.value, 13622187809001n);
       storage.verify();
     });
+
+    it('should set STATE_ERROR on error', async () => {
+      const wallet = new Wallet({
+        ...defaultOptions,
+      });
+      await wallet.open(RANDOM_PUBLIC_KEY);
+      sinon.stub(defaultOptions.account, 'request');
+      await assert.rejects(async () => {
+        await wallet.load();
+      });
+      assert.equal(wallet.state, Wallet.STATE_ERROR);
+    });
   });
 
   describe('addTransaction', () => {
