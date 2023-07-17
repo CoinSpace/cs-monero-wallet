@@ -363,7 +363,9 @@ describe('MoneroWallet', () => {
       const privateKey = wallet.getPrivateKey(RANDOM_SEED);
       assert.deepEqual(privateKey, [{
         address: WALLET_ADDRESS,
+        publicviewkey: 'abdfbf97f2a56138f8f175d54d6a8bf4928b8ed6e284a00ddcd1c2d49c41b48e',
         secretviewkey: '257082a0fc4938d0c54eb54b7c2efeddd171e8dd8cf8663eb0407e30189f7701',
+        publicspendkey: '96f4be74272e63b1d05ce2fbdef9f6db2de367bc7000af1d2b2eee4aecef194f',
         secretspendkey: '84a4d4735070ddd74124e873f22bcc1471dd1163d1c1ca778cd9acfc0d6c260c',
       }]);
     });
