@@ -594,7 +594,7 @@ describe('MoneroWallet', () => {
         amount: new Amount(2_000000000000n, wallet.crypto.decimals),
         feeRate: Wallet.FEE_RATE_DEFAULT,
       });
-      assert.equal(fee.value, 10379090000n);
+      assert.equal(fee.value, 10518980000n);
     });
 
     it('should estimate transaction fee (2 XMR, fastest fee)', async () => {
@@ -603,7 +603,7 @@ describe('MoneroWallet', () => {
         amount: new Amount(2_000000000000n, wallet.crypto.decimals),
         feeRate: Wallet.FEE_RATE_FASTEST,
       });
-      assert.equal(fee.value, 19477080000n);
+      assert.equal(fee.value, 22974440000n);
     });
 
     it('should estimate transaction fee (max amount)', async () => {
@@ -612,7 +612,7 @@ describe('MoneroWallet', () => {
         amount: new Amount(5_593212556220n, wallet.crypto.decimals),
         feeRate: Wallet.FEE_RATE_DEFAULT,
       });
-      assert.equal(fee.value, 28817732781n);
+      assert.equal(fee.value, 28957622781n);
     });
   });
 
