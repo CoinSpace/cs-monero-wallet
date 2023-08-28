@@ -663,12 +663,13 @@ describe('MoneroWallet', () => {
       await wallet.open(RANDOM_PUBLIC_KEY);
       await wallet.load();
 
-      await wallet.createTransaction({
+      const id = await wallet.createTransaction({
         address: DESTIONATION_ADDRESS,
         amount: new Amount(4_000000000000n, wallet.crypto.decimals),
         feeRate: Wallet.FEE_RATE_DEFAULT,
       }, RANDOM_SEED);
       assert.equal(wallet.balance.value, 9_604261829001n);
+      assert.equal(id, 'e28464110a36f76bff7e2524a74403936c244a91773d80be3e7fde12efe45b1a');
     });
   });
 
