@@ -574,6 +574,31 @@ describe('Wallet', () => {
       assert.strictEqual(res.hasMoreTxs, true);
       assert.strictEqual(res.txs.length, 5);
     });
+
+    it('fix doubled txs', async () => {
+      const wallet = new MoneroWallet({
+        publicKey: RANDOM_PUBLIC_KEY,
+        storage: new Storage([[
+          'txIds', [
+            'CC007da08e61ff69045161e34f4fc7c5b3c5b6823c013bfcd23f8ef4202aa178',
+            'cc007da08e61ff69045161e34f4fc7c5b3c5b6823c013bfcd23f8ef4202aa178',
+          ]], [
+          'keyImages', {
+            // eslint-disable-next-line max-len
+            '2723afddf8797ca33aa8ccb9a2a52fe4f9f9102127b0038df96d130892154f3a-0-83dJgBZoaky1976Hb2ocaEDn4zQDVgexoWKWxcFEaofAZMkR2Z3zETbA2pFaaMjZ6PCBwPiMvhaKTAcpB37z5fgFJLcNJHB': '57bc60fb31368ec2fe9e2b49c7e1d1cedfe88c93c6cca1449b9009574f36d28a',
+          },
+        ]]),
+        request: mockRequest,
+        apiNode: 'node',
+        apiWeb: 'web',
+        crypto,
+        cache,
+      });
+      await wallet.load();
+      const res = await wallet.loadTxs();
+      assert.strictEqual(res.hasMoreTxs, false);
+      assert.strictEqual(res.txs.length, 1);
+    });
   });
 
   describe('exportPrivateKeys', () => {

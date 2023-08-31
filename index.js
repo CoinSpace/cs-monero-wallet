@@ -53,7 +53,7 @@ export default class MoneroWallet {
   #moneroCoreJS;
 
   get #txIds() {
-    return this.#txs.map(item => item.txId);
+    return this.#txs.map(item => item.txId.toLowerCase());
   }
 
   get addressTypes() {
@@ -236,7 +236,8 @@ export default class MoneroWallet {
     this.#storage.init();
     this.#cachedKeyImages = (await this.#storage.get('keyImages')) || {};
 
-    const txIds = (await this.#storage.get('txIds')) || [];
+    const txIds = [...new Set(((await this.#storage.get('txIds')) || [])
+      .map((item) => item.toLowerCase()))];
     this.#txs = await this.#loadTxs(txIds);
     for (const tx of this.#txs) {
       this.#processTx(tx);
@@ -472,11 +473,12 @@ export default class MoneroWallet {
     if (!/^[0-9A-Fa-f]{64}$/.test(txId)) {
       throw new TypeError('Invalid Transaction ID');
     }
+    const id = txId.toLowerCase();
     // check if already added
-    if (this.#txIds.includes(txId)) {
+    if (this.#txIds.includes(id)) {
       throw new TypeError('Transaction already added');
     }
-    const [tx] = await this.#loadTxs([txId]);
+    const [tx] = await this.#loadTxs([id]);
     if (!tx) {
       throw new TypeError('Unknown transaction');
     }

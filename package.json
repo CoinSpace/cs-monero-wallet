@@ -7,7 +7,7 @@
   "main": "./index.js",
   "type": "module",
   "scripts": {
-    "test": "mocha",
+    "test": "mocha --no-experimental-fetch",
     "lint": "eslint index.js lib/ test/"
   },
   "repository": {
