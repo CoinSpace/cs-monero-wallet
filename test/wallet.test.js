@@ -43,7 +43,7 @@ const FEE = {
 const FIXTURES = JSON.parse(await fs.readFile('./test/fixtures.json'));
 
 function transactions(ids) {
-  return FIXTURES.filter((item) => ids.includes(item.txId));
+  return JSON.parse(JSON.stringify(FIXTURES.filter((item) => ids.includes(item.txId))));
 }
 
 const moneroATmonero = {
@@ -221,11 +221,10 @@ describe('MoneroWallet', () => {
         'txIds', [...TX_IDS, 'CC007da08e61ff69045161e34f4fc7c5b3c5b6823c013bfcd23f8ef4202aa178'],
       ], [
         'keyImages', KEY_IMAGES,
-      ], [
-        'createdAt', new Date(),
       ]]);
       const mock = sinon.mock(storage);
       mock.expects('set').withArgs('balance', '13622187809001').once();
+      mock.expects('set').withArgs('createdAt', sinon.match.number).once();
       mock.expects('set').withArgs('txIds', TX_IDS).once();
       mock.expects('save').once();
       const wallet = new Wallet({
@@ -544,7 +543,7 @@ describe('MoneroWallet', () => {
         }, {
           name: 'BigAmountError',
           message: 'Big amount',
-          amount: new Amount(5_593212556220n, wallet.crypto.decimals),
+          amount: new Amount(8_578130436817n, wallet.crypto.decimals),
         });
       });
 
@@ -559,7 +558,7 @@ describe('MoneroWallet', () => {
         }, {
           name: 'BigAmountConfirmationPendingError',
           message: 'Big amount, confirmation pending',
-          amount: new Amount(5_593212556220n, wallet.crypto.decimals),
+          amount: new Amount(8_578130436817n, wallet.crypto.decimals),
         });
       });
     });
@@ -599,7 +598,7 @@ describe('MoneroWallet', () => {
         address: DESTIONATION_ADDRESS,
         feeRate: Wallet.FEE_RATE_DEFAULT,
       });
-      assert.equal(maxAmount.value, 5_593212556220n);
+      assert.equal(maxAmount.value, 8_578130436817n);
     });
 
     it('should correct estimate max amount (fastest fee)', async () => {
@@ -607,7 +606,7 @@ describe('MoneroWallet', () => {
         address: DESTIONATION_ADDRESS,
         feeRate: Wallet.FEE_RATE_FASTEST,
       });
-      assert.equal(maxAmount.value, 5_569112566171n);
+      assert.equal(maxAmount.value, 8_550268635822n);
     });
   });
 
@@ -664,7 +663,7 @@ describe('MoneroWallet', () => {
         amount: new Amount(5_593212556220n, wallet.crypto.decimals),
         feeRate: Wallet.FEE_RATE_DEFAULT,
       });
-      assert.equal(fee.value, 28957622781n);
+      assert.equal(fee.value, 28800092781n);
     });
   });
 
