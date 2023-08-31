@@ -208,6 +208,36 @@ describe('MoneroWallet', () => {
       });
       assert.equal(wallet.state, Wallet.STATE_ERROR);
     });
+
+    it('should fix doubled txs', async () => {
+      sinon.stub(defaultOptions.account, 'request')
+        .withArgs({
+          seed: 'device',
+          method: 'GET',
+          url: `api/v1/txs/${TX_IDS.join(',')}`,
+          baseURL: 'node',
+        }).resolves(transactions(TX_IDS));
+      const storage = new Storage([[
+        'txIds', [...TX_IDS, 'CC007da08e61ff69045161e34f4fc7c5b3c5b6823c013bfcd23f8ef4202aa178'],
+      ], [
+        'keyImages', KEY_IMAGES,
+      ], [
+        'createdAt', new Date(),
+      ]]);
+      const mock = sinon.mock(storage);
+      mock.expects('set').withArgs('balance', '13622187809001').once();
+      mock.expects('set').withArgs('txIds', TX_IDS).once();
+      mock.expects('save').once();
+      const wallet = new Wallet({
+        ...defaultOptions,
+        storage,
+      });
+      await wallet.open(RANDOM_PUBLIC_KEY);
+      await wallet.load();
+      assert.equal(wallet.state, Wallet.STATE_LOADED);
+      assert.equal(wallet.balance.value, 13622187809001n);
+      mock.verify();
+    });
   });
 
   describe('addTransaction', () => {
@@ -273,6 +303,28 @@ describe('MoneroWallet', () => {
 
       await assert.rejects(async () => {
         await wallet.validateTransaction('b973adafe966518e5ef69b69ac2f52048df2273fb220321dc604e75b5f9a3678', RANDOM_SEED);
+      }, {
+        name: 'TransactionAlreadyAddedError',
+        message: 'Transaction already added ID: "b973adafe966518e5ef69b69ac2f52048df2273fb220321dc604e75b5f9a3678"',
+      });
+    });
+
+    it('should not add already added transaction (uppercase)', async () => {
+      sinon.stub(defaultOptions.account, 'request')
+        .withArgs({
+          seed: 'device',
+          method: 'GET',
+          url: `api/v1/txs/${TX_IDS.join(',')}`,
+          baseURL: 'node',
+        }).resolves(transactions(TX_IDS));
+      const wallet = new Wallet({
+        ...defaultOptions,
+      });
+      await wallet.open(RANDOM_PUBLIC_KEY);
+      await wallet.load();
+
+      await assert.rejects(async () => {
+        await wallet.validateTransaction('B973ADAFE966518E5EF69B69AC2F52048DF2273FB220321DC604E75B5F9A3678', RANDOM_SEED);
       }, {
         name: 'TransactionAlreadyAddedError',
         message: 'Transaction already added ID: "b973adafe966518e5ef69b69ac2f52048df2273fb220321dc604e75b5f9a3678"',
