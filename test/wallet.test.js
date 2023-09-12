@@ -56,6 +56,8 @@ const moneroATmonero = {
   decimals: 12,
 };
 
+const COIN_PRICE = 150;
+
 class Storage extends Map {
   save() {}
 }
@@ -69,12 +71,7 @@ describe('MoneroWallet', () => {
       platform: moneroATmonero,
       cache: { get() {}, set() {} },
       settings: {},
-      account: {
-        request(...args) { console.log(args); },
-        market: {
-          getPrice() { return 150; },
-        },
-      },
+      request(...args) { console.log(args); },
       apiNode: 'node',
       storage: new Storage([[
         'txIds', TX_IDS,
@@ -178,7 +175,7 @@ describe('MoneroWallet', () => {
 
   describe('load', () => {
     it('should load wallet', async () => {
-      sinon.stub(defaultOptions.account, 'request')
+      sinon.stub(defaultOptions, 'request')
         .withArgs({
           seed: 'device',
           method: 'GET',
@@ -198,11 +195,17 @@ describe('MoneroWallet', () => {
     });
 
     it('should set STATE_ERROR on error', async () => {
+      sinon.stub(defaultOptions, 'request')
+        .withArgs({
+          seed: 'device',
+          method: 'GET',
+          url: `api/v1/txs/${TX_IDS.join(',')}`,
+          baseURL: 'node',
+        }).rejects();
       const wallet = new Wallet({
         ...defaultOptions,
       });
       await wallet.open(RANDOM_PUBLIC_KEY);
-      sinon.stub(defaultOptions.account, 'request');
       await assert.rejects(async () => {
         await wallet.load();
       });
@@ -210,7 +213,7 @@ describe('MoneroWallet', () => {
     });
 
     it('should fix doubled txs', async () => {
-      sinon.stub(defaultOptions.account, 'request')
+      sinon.stub(defaultOptions, 'request')
         .withArgs({
           seed: 'device',
           method: 'GET',
@@ -241,7 +244,7 @@ describe('MoneroWallet', () => {
 
   describe('addTransaction', () => {
     it('should add valid transaction', async () => {
-      sinon.stub(defaultOptions.account, 'request')
+      sinon.stub(defaultOptions, 'request')
         .withArgs({
           seed: 'device',
           method: 'GET',
@@ -265,7 +268,7 @@ describe('MoneroWallet', () => {
     });
 
     it('should not add transaction with invalid ID', async () => {
-      sinon.stub(defaultOptions.account, 'request')
+      sinon.stub(defaultOptions, 'request')
         .withArgs({
           seed: 'device',
           method: 'GET',
@@ -287,7 +290,7 @@ describe('MoneroWallet', () => {
     });
 
     it('should not add already added transaction', async () => {
-      sinon.stub(defaultOptions.account, 'request')
+      sinon.stub(defaultOptions, 'request')
         .withArgs({
           seed: 'device',
           method: 'GET',
@@ -309,7 +312,7 @@ describe('MoneroWallet', () => {
     });
 
     it('should not add already added transaction (uppercase)', async () => {
-      sinon.stub(defaultOptions.account, 'request')
+      sinon.stub(defaultOptions, 'request')
         .withArgs({
           seed: 'device',
           method: 'GET',
@@ -331,7 +334,7 @@ describe('MoneroWallet', () => {
     });
 
     it('should not add unknown transaction', async () => {
-      sinon.stub(defaultOptions.account, 'request')
+      sinon.stub(defaultOptions, 'request')
         .withArgs({
           seed: 'device',
           method: 'GET',
@@ -353,7 +356,7 @@ describe('MoneroWallet', () => {
     });
 
     it('should not add not own transaction', async () => {
-      sinon.stub(defaultOptions.account, 'request')
+      sinon.stub(defaultOptions, 'request')
         .withArgs({
           seed: 'device',
           method: 'GET',
@@ -426,7 +429,7 @@ describe('MoneroWallet', () => {
     describe('validateAddress', () => {
       let wallet;
       beforeEach(async () => {
-        sinon.stub(defaultOptions.account, 'request')
+        sinon.stub(defaultOptions, 'request')
           .withArgs({
             seed: 'device',
             method: 'GET',
@@ -475,7 +478,7 @@ describe('MoneroWallet', () => {
     describe('validateAmount', () => {
       let wallet;
       beforeEach(async () => {
-        sinon.stub(defaultOptions.account, 'request')
+        sinon.stub(defaultOptions, 'request')
           .withArgs({
             seed: 'device',
             method: 'GET',
@@ -506,6 +509,7 @@ describe('MoneroWallet', () => {
           address: DESTIONATION_ADDRESS,
           amount: new Amount(2_000000000000n, wallet.crypto.decimals),
           feeRate: Wallet.FEE_RATE_DEFAULT,
+          price: COIN_PRICE,
         });
         assert.ok(valid);
       });
@@ -515,6 +519,7 @@ describe('MoneroWallet', () => {
           address: DESTIONATION_ADDRESS,
           amount: new Amount(2_000000000000n, wallet.crypto.decimals),
           feeRate: Wallet.FEE_RATE_FASTEST,
+          price: COIN_PRICE,
         });
         assert.ok(valid);
       });
@@ -525,6 +530,7 @@ describe('MoneroWallet', () => {
             address: DESTIONATION_ADDRESS,
             amount: new Amount(0n, wallet.crypto.decimals),
             feeRate: Wallet.FEE_RATE_DEFAULT,
+            price: COIN_PRICE,
           });
         }, {
           name: 'SmallAmountError',
@@ -539,6 +545,7 @@ describe('MoneroWallet', () => {
             address: DESTIONATION_ADDRESS,
             amount: new Amount(550_000000000000n, wallet.crypto.decimals),
             feeRate: Wallet.FEE_RATE_DEFAULT,
+            price: COIN_PRICE,
           });
         }, {
           name: 'BigAmountError',
@@ -548,12 +555,12 @@ describe('MoneroWallet', () => {
       });
 
       it('throw on big amount (unconfirmed)', async () => {
-
         await assert.rejects(async () => {
           await wallet.validateAmount({
             address: DESTIONATION_ADDRESS,
             amount: new Amount(10_000000000000n, wallet.crypto.decimals),
             feeRate: Wallet.FEE_RATE_DEFAULT,
+            price: COIN_PRICE,
           });
         }, {
           name: 'BigAmountConfirmationPendingError',
@@ -567,7 +574,7 @@ describe('MoneroWallet', () => {
   describe('estimateMaxAmount', () => {
     let wallet;
     beforeEach(async () => {
-      sinon.stub(defaultOptions.account, 'request')
+      sinon.stub(defaultOptions, 'request')
         .withArgs({
           seed: 'device',
           method: 'GET',
@@ -597,6 +604,7 @@ describe('MoneroWallet', () => {
       const maxAmount = await wallet.estimateMaxAmount({
         address: DESTIONATION_ADDRESS,
         feeRate: Wallet.FEE_RATE_DEFAULT,
+        price: COIN_PRICE,
       });
       assert.equal(maxAmount.value, 8_578130436817n);
     });
@@ -605,6 +613,7 @@ describe('MoneroWallet', () => {
       const maxAmount = await wallet.estimateMaxAmount({
         address: DESTIONATION_ADDRESS,
         feeRate: Wallet.FEE_RATE_FASTEST,
+        price: COIN_PRICE,
       });
       assert.equal(maxAmount.value, 8_550268635822n);
     });
@@ -613,7 +622,7 @@ describe('MoneroWallet', () => {
   describe('estimateTransactionFee', () => {
     let wallet;
     beforeEach(async () => {
-      sinon.stub(defaultOptions.account, 'request')
+      sinon.stub(defaultOptions, 'request')
         .withArgs({
           seed: 'device',
           method: 'GET',
@@ -644,6 +653,7 @@ describe('MoneroWallet', () => {
         address: DESTIONATION_ADDRESS,
         amount: new Amount(2_000000000000n, wallet.crypto.decimals),
         feeRate: Wallet.FEE_RATE_DEFAULT,
+        price: COIN_PRICE,
       });
       assert.equal(fee.value, 10518980000n);
     });
@@ -653,6 +663,7 @@ describe('MoneroWallet', () => {
         address: DESTIONATION_ADDRESS,
         amount: new Amount(2_000000000000n, wallet.crypto.decimals),
         feeRate: Wallet.FEE_RATE_FASTEST,
+        price: COIN_PRICE,
       });
       assert.equal(fee.value, 22974440000n);
     });
@@ -662,6 +673,7 @@ describe('MoneroWallet', () => {
         address: DESTIONATION_ADDRESS,
         amount: new Amount(5_593212556220n, wallet.crypto.decimals),
         feeRate: Wallet.FEE_RATE_DEFAULT,
+        price: COIN_PRICE,
       });
       assert.equal(fee.value, 28800092781n);
     });
@@ -669,7 +681,7 @@ describe('MoneroWallet', () => {
 
   describe('createTransaction', () => {
     it('should create valid transaction', async () => {
-      sinon.stub(defaultOptions.account, 'request')
+      sinon.stub(defaultOptions, 'request')
         .withArgs({
           seed: 'device',
           method: 'GET',
@@ -718,6 +730,7 @@ describe('MoneroWallet', () => {
         address: DESTIONATION_ADDRESS,
         amount: new Amount(4_000000000000n, wallet.crypto.decimals),
         feeRate: Wallet.FEE_RATE_DEFAULT,
+        price: COIN_PRICE,
       }, RANDOM_SEED);
       assert.equal(wallet.balance.value, 9_604261829001n);
       assert.equal(id, 'e28464110a36f76bff7e2524a74403936c244a91773d80be3e7fde12efe45b1a');
@@ -726,7 +739,7 @@ describe('MoneroWallet', () => {
 
   describe('loadTransactions', () => {
     it('should load transactions', async () => {
-      sinon.stub(defaultOptions.account, 'request')
+      sinon.stub(defaultOptions, 'request')
         .withArgs({
           seed: 'device',
           method: 'GET',
