@@ -181,6 +181,7 @@ describe('MoneroWallet', () => {
           method: 'GET',
           url: `api/v1/txs/${TX_IDS.join(',')}`,
           baseURL: 'node',
+          headers: sinon.match.object,
         }).resolves(transactions(TX_IDS));
       const storage = sinon.mock(defaultOptions.storage);
       storage.expects('save').once();
@@ -190,7 +191,7 @@ describe('MoneroWallet', () => {
       await wallet.open(RANDOM_PUBLIC_KEY);
       await wallet.load();
       assert.equal(wallet.state, Wallet.STATE_LOADED);
-      assert.equal(wallet.balance.value, 13622187809001n);
+      assert.equal(wallet.balance.value, 13_622187809001n);
       storage.verify();
     });
 
@@ -201,6 +202,7 @@ describe('MoneroWallet', () => {
           method: 'GET',
           url: `api/v1/txs/${TX_IDS.join(',')}`,
           baseURL: 'node',
+          headers: sinon.match.object,
         }).rejects();
       const wallet = new Wallet({
         ...defaultOptions,
@@ -219,6 +221,7 @@ describe('MoneroWallet', () => {
           method: 'GET',
           url: `api/v1/txs/${TX_IDS.join(',')}`,
           baseURL: 'node',
+          headers: sinon.match.object,
         }).resolves(transactions(TX_IDS));
       const storage = new Storage([[
         'txIds', [...TX_IDS, 'CC007da08e61ff69045161e34f4fc7c5b3c5b6823c013bfcd23f8ef4202aa178'],
@@ -237,7 +240,7 @@ describe('MoneroWallet', () => {
       await wallet.open(RANDOM_PUBLIC_KEY);
       await wallet.load();
       assert.equal(wallet.state, Wallet.STATE_LOADED);
-      assert.equal(wallet.balance.value, 13622187809001n);
+      assert.equal(wallet.balance.value, 13_622187809001n);
       mock.verify();
     });
   });
@@ -250,12 +253,14 @@ describe('MoneroWallet', () => {
           method: 'GET',
           url: `api/v1/txs/${TX_IDS.join(',')}`,
           baseURL: 'node',
+          headers: sinon.match.object,
         }).resolves(transactions(TX_IDS))
         .withArgs({
           seed: 'device',
           method: 'GET',
           url: 'api/v1/txs/e28464110a36f76bff7e2524a74403936c244a91773d80be3e7fde12efe45b1a',
           baseURL: 'node',
+          headers: sinon.match.object,
         }).resolves(transactions(['e28464110a36f76bff7e2524a74403936c244a91773d80be3e7fde12efe45b1a']));
       const wallet = new Wallet({
         ...defaultOptions,
@@ -274,6 +279,7 @@ describe('MoneroWallet', () => {
           method: 'GET',
           url: `api/v1/txs/${TX_IDS.join(',')}`,
           baseURL: 'node',
+          headers: sinon.match.object,
         }).resolves(transactions(TX_IDS));
       const wallet = new Wallet({
         ...defaultOptions,
@@ -296,6 +302,7 @@ describe('MoneroWallet', () => {
           method: 'GET',
           url: `api/v1/txs/${TX_IDS.join(',')}`,
           baseURL: 'node',
+          headers: sinon.match.object,
         }).resolves(transactions(TX_IDS));
       const wallet = new Wallet({
         ...defaultOptions,
@@ -318,6 +325,7 @@ describe('MoneroWallet', () => {
           method: 'GET',
           url: `api/v1/txs/${TX_IDS.join(',')}`,
           baseURL: 'node',
+          headers: sinon.match.object,
         }).resolves(transactions(TX_IDS));
       const wallet = new Wallet({
         ...defaultOptions,
@@ -340,6 +348,7 @@ describe('MoneroWallet', () => {
           method: 'GET',
           url: `api/v1/txs/${TX_IDS.join(',')}`,
           baseURL: 'node',
+          headers: sinon.match.object,
         }).resolves(transactions(TX_IDS));
       const wallet = new Wallet({
         ...defaultOptions,
@@ -362,12 +371,14 @@ describe('MoneroWallet', () => {
           method: 'GET',
           url: `api/v1/txs/${TX_IDS.join(',')}`,
           baseURL: 'node',
+          headers: sinon.match.object,
         }).resolves(transactions(TX_IDS))
         .withArgs({
           seed: 'device',
           method: 'GET',
           url: 'api/v1/txs/9a2b897624f9c1e37137511ddfa43944f5ed56cbf4f3cfb819b4d2f081c44848',
           baseURL: 'node',
+          headers: sinon.match.object,
         }).resolves(transactions(['9a2b897624f9c1e37137511ddfa43944f5ed56cbf4f3cfb819b4d2f081c44848']));
       const wallet = new Wallet({
         ...defaultOptions,
@@ -381,6 +392,64 @@ describe('MoneroWallet', () => {
         name: 'NotYourTransactionError',
         message: 'Not your transaction ID: "9a2b897624f9c1e37137511ddfa43944f5ed56cbf4f3cfb819b4d2f081c44848"',
       });
+    });
+
+    it('should add transactions one by one', async () => {
+      sinon.stub(defaultOptions, 'request')
+        .withArgs({
+          seed: 'device',
+          method: 'GET',
+          url: sinon.match(/^api\/v1\/txs\//),
+          baseURL: 'node',
+          headers: sinon.match.object,
+        }).callsFake(({ url }) => {
+          const ids = url.replace('api/v1/txs/', '').split(',');
+          return transactions(ids);
+        });
+
+      const wallet = new Wallet({
+        ...defaultOptions,
+        storage: new Storage(),
+      });
+      await wallet.open(RANDOM_PUBLIC_KEY);
+      await wallet.load();
+
+      for (const id of TX_IDS) {
+        await wallet.addTransaction(id, RANDOM_SEED);
+        await wallet.cleanup();
+        await wallet.load();
+      }
+      assert.equal(wallet.balance.value, 13_622187809001n);
+    });
+
+    it('should add transactions one by one (reverse)', async () => {
+      sinon.stub(defaultOptions, 'request')
+        .withArgs({
+          seed: 'device',
+          method: 'GET',
+          url: sinon.match(/^api\/v1\/txs\//),
+          baseURL: 'node',
+          headers: sinon.match.object,
+        }).callsFake(({ url }) => {
+          const ids = url.replace('api/v1/txs/', '').split(',');
+          return transactions(ids);
+        });
+
+      const wallet = new Wallet({
+        ...defaultOptions,
+        storage: new Storage(),
+      });
+      await wallet.open(RANDOM_PUBLIC_KEY);
+      await wallet.load();
+
+      const rev = [...TX_IDS];
+      rev.reverse();
+      for (const id of rev) {
+        await wallet.addTransaction(id, RANDOM_SEED);
+        await wallet.cleanup();
+        await wallet.load();
+      }
+      assert.equal(wallet.balance.value, 13_622187809001n);
     });
   });
 
@@ -435,6 +504,7 @@ describe('MoneroWallet', () => {
             method: 'GET',
             url: `api/v1/txs/${TX_IDS.join(',')}`,
             baseURL: 'node',
+            headers: sinon.match.object,
           }).resolves(transactions(TX_IDS));
         wallet = new Wallet({
           ...defaultOptions,
@@ -484,12 +554,14 @@ describe('MoneroWallet', () => {
             method: 'GET',
             url: `api/v1/txs/${TX_IDS.join(',')}`,
             baseURL: 'node',
+            headers: sinon.match.object,
           }).resolves(transactions(TX_IDS))
           .withArgs({
             seed: 'device',
             method: 'GET',
             url: 'api/v1/estimatefee',
             baseURL: 'node',
+            headers: sinon.match.object,
           }).resolves(FEE)
           .withArgs({
             seed: 'device',
@@ -580,12 +652,14 @@ describe('MoneroWallet', () => {
           method: 'GET',
           url: `api/v1/txs/${TX_IDS.join(',')}`,
           baseURL: 'node',
+          headers: sinon.match.object,
         }).resolves(transactions(TX_IDS))
         .withArgs({
           seed: 'device',
           method: 'GET',
           url: 'api/v1/estimatefee',
           baseURL: 'node',
+          headers: sinon.match.object,
         }).resolves(FEE)
         .withArgs({
           seed: 'device',
@@ -628,12 +702,14 @@ describe('MoneroWallet', () => {
           method: 'GET',
           url: `api/v1/txs/${TX_IDS.join(',')}`,
           baseURL: 'node',
+          headers: sinon.match.object,
         }).resolves(transactions(TX_IDS))
         .withArgs({
           seed: 'device',
           method: 'GET',
           url: 'api/v1/estimatefee',
           baseURL: 'node',
+          headers: sinon.match.object,
         }).resolves(FEE)
         .withArgs({
           seed: 'device',
@@ -687,18 +763,21 @@ describe('MoneroWallet', () => {
           method: 'GET',
           url: `api/v1/txs/${TX_IDS.join(',')}`,
           baseURL: 'node',
+          headers: sinon.match.object,
         }).resolves(transactions(TX_IDS))
         .withArgs({
           seed: 'device',
           method: 'GET',
           url: 'api/v1/txs/e28464110a36f76bff7e2524a74403936c244a91773d80be3e7fde12efe45b1a',
           baseURL: 'node',
+          headers: sinon.match.object,
         }).resolves(transactions(['e28464110a36f76bff7e2524a74403936c244a91773d80be3e7fde12efe45b1a']))
         .withArgs({
           seed: 'device',
           method: 'GET',
           url: 'api/v1/estimatefee',
           baseURL: 'node',
+          headers: sinon.match.object,
         }).resolves(FEE)
         .withArgs({
           seed: 'device',
@@ -706,6 +785,7 @@ describe('MoneroWallet', () => {
           url: 'api/v1/outputs/random',
           params: sinon.match.object,
           baseURL: 'node',
+          headers: sinon.match.object,
         }).resolves([])
         .withArgs({
           seed: 'device',
@@ -713,6 +793,7 @@ describe('MoneroWallet', () => {
           url: 'api/v1/tx/send',
           data: sinon.match.object,
           baseURL: 'node',
+          headers: sinon.match.object,
         }).resolves({ txId: 'e28464110a36f76bff7e2524a74403936c244a91773d80be3e7fde12efe45b1a' })
         .withArgs({
           seed: 'device',
@@ -745,6 +826,7 @@ describe('MoneroWallet', () => {
           method: 'GET',
           url: `api/v1/txs/${TX_IDS.join(',')}`,
           baseURL: 'node',
+          headers: sinon.match.object,
         }).resolves(transactions(TX_IDS));
       const wallet = new Wallet({
         ...defaultOptions,

@@ -13,7 +13,7 @@
   },
   "scripts": {
     "test": "mocha -- --no-experimental-fetch",
-    "lint": "eslint index.js lib/ test/"
+    "lint": "eslint . --ext .js --report-unused-disable-directives"
   },
   "repository": {
     "type": "git",
@@ -32,7 +32,7 @@
     "eslint": "^8.40.0",
     "eslint-config-coinspace": "^2.0.0",
     "mocha": "^10.0.0",
-    "sinon": "^15.0.4"
+    "sinon": "^17.0.1"
   },
   "eslintConfig": {
     "extends": [
