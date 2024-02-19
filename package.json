@@ -20,7 +20,7 @@
     "url": "https://github.com/CoinSpace/cs-monero-wallet.git"
   },
   "dependencies": {
-    "@coinspace/monero-core-js": "0.2.0",
+    "@coinspace/monero-core-js": "0.2.1",
     "@scure/bip32": "^1.3.0",
     "buffer": "^6.0.3",
     "monerolib": "^1.1.4"
