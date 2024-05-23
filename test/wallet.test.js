@@ -30,6 +30,7 @@ const TX_IDS = [
   '939fc6c6f172e4724e16e47ad08d9900d0e873a0d6fb969c63c86d2af1b27402',
   'cc007da08e61ff69045161e34f4fc7c5b3c5b6823c013bfcd23f8ef4202aa178',
 ];
+const TX_ID_DOUBLE = '48735956e0ad25b83e6c48cd9d0441f71f1fff3925c3760ab918588832b8759f';
 const CS_FEE = {
   address: CS_FEE_ADDRESS,
   fee: 0.005,
@@ -450,6 +451,26 @@ describe('MoneroWallet', () => {
         await wallet.load();
       }
       assert.equal(wallet.balance.value, 13_622187809001n);
+    });
+
+    it('should add transaction with 2 own inputs', async () => {
+      sinon.stub(defaultOptions, 'request')
+        .withArgs({
+          seed: 'device',
+          method: 'GET',
+          url: `api/v1/txs/${TX_ID_DOUBLE}`,
+          baseURL: 'node',
+          headers: sinon.match.object,
+        }).resolves(transactions(TX_ID_DOUBLE));
+      const wallet = new Wallet({
+        ...defaultOptions,
+        storage: new Storage(),
+      });
+      await wallet.open(RANDOM_PUBLIC_KEY);
+      await wallet.load();
+
+      await wallet.addTransaction(TX_ID_DOUBLE, RANDOM_SEED);
+      assert.equal(wallet.balance.value, 3_015000000000n);
     });
   });
 
