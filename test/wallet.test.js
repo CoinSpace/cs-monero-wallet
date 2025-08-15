@@ -17,8 +17,13 @@ const WALLET_ADDRESS = '47LuCrMtrkiWk22fh1osk1dfKAuwAtr145syRSJfytJLEKuugyCJc2cA
 const WALLET_SUBADDRESS = '83dJgBZoaky1976Hb2ocaEDn4zQDVgexoWKWxcFEaofAZMkR2Z3zETbA2pFaaMjZ6PCBwPiMvhaKTAcpB37z5fgFJLcNJHB';
 const DESTIONATION_ADDRESS = '46a8AU2ZbHoNZVHjByoQgQAxaFxX9bCkzgqQLZ7j6r3ugUPGYpHf83X9PXHyvyX5A9XJiG58q4RXKhgyQVHojQkNKUJzBsX';
 const CS_FEE_ADDRESS = '45vtcKT7mxmNQt4PKmpnu4WCUhBa33WBVXtQVVh61Uv1fpK78cYuRNuFD4oxGcXnJYPwFMWPhN2dbH8NTMnoCk143e4TfJJ';
-const KEY_IMAGES = {
+const INITIAL_KEY_IMAGES = {
   '2723afddf8797ca33aa8ccb9a2a52fe4f9f9102127b0038df96d130892154f3a-0-83dJgBZoaky1976Hb2ocaEDn4zQDVgexoWKWxcFEaofAZMkR2Z3zETbA2pFaaMjZ6PCBwPiMvhaKTAcpB37z5fgFJLcNJHB': '57bc60fb31368ec2fe9e2b49c7e1d1cedfe88c93c6cca1449b9009574f36d28a',
+};
+const KEY_IMAGES = {
+  ...INITIAL_KEY_IMAGES,
+  '2140aa7572cdfd59232e09f61f615d0766e995c0b5d45bbd96bc03afb59f4e4a-0-83dJgBZoaky1976Hb2ocaEDn4zQDVgexoWKWxcFEaofAZMkR2Z3zETbA2pFaaMjZ6PCBwPiMvhaKTAcpB37z5fgFJLcNJHB': '5f112b2c3031f0e05b7c66ed5e7217da90fb2fa8f960fc4514681156d808955a',
+  '2b72fc9d6ae270e52cc5049e9a1db8af8d2dd58e921b96be95adf53ad0e61d36-0-47LuCrMtrkiWk22fh1osk1dfKAuwAtr145syRSJfytJLEKuugyCJc2cAXhqBymbMAahufE3ngnqZ93KV6MMQgD7ZH3MVHwV': '3df305973c3b1d4930fd6c1cc91c6aa8f57e5f793313ede681b53e77f3f78bcf',
 };
 const TX_IDS = [
   'a0cd9a954719e9de38dd31d59272644a310b0a85ba9618e7ffc102f38909f784',
@@ -78,6 +83,8 @@ describe('MoneroWallet', () => {
         'txIds', TX_IDS,
       ], [
         'keyImages', KEY_IMAGES,
+      ], [
+        'createdAt', Date.now(),
       ]]),
       txPerPage: 5,
     };
@@ -242,6 +249,99 @@ describe('MoneroWallet', () => {
       await wallet.load();
       assert.equal(wallet.state, Wallet.STATE_LOADED);
       assert.equal(wallet.balance.value, 13_622187809001n);
+      mock.verify();
+    });
+
+    it('should load with valid lastTxId', async () => {
+      const INITIAL_TX_IDS = [
+        'b973adafe966518e5ef69b69ac2f52048df2273fb220321dc604e75b5f9a3678',
+        '8f5fb6b4f4c3c5a902e4ca42a7f4c4f0bdb9d61d3634ab5b46a6217f1b8b04ad',
+        'cc792ff7e5616ca6af4a1f0d520a9d7726cc486af44d13e3a26dbbf384253931',
+      ];
+      const LAST_TX_ID = '939fc6c6f172e4724e16e47ad08d9900d0e873a0d6fb969c63c86d2af1b27402';
+      const storage = new Storage([[
+        'txIds', INITIAL_TX_IDS,
+      ], [
+        'keyImages', KEY_IMAGES,
+      ], [
+        'createdAt', Date.now(),
+      ], [
+        'lastTxId', LAST_TX_ID,
+      ]]);
+      const mock = sinon.mock(storage);
+      mock.expects('set').withArgs('balance', '7123456789000').once();
+      mock.expects('set').withArgs('balance', '5622187809000').once();
+      mock.expects('set').withArgs('keyImages', KEY_IMAGES).once();
+      mock.expects('set').withArgs('txIds', INITIAL_TX_IDS).once();
+      mock.expects('set').withArgs('txIds', [...INITIAL_TX_IDS, LAST_TX_ID]).once();
+      sinon.stub(defaultOptions, 'request')
+        .withArgs({
+          seed: 'device',
+          method: 'GET',
+          url: `api/v1/txs/${INITIAL_TX_IDS.join(',')}`,
+          baseURL: 'node',
+          headers: sinon.match.object,
+        }).resolves(transactions(INITIAL_TX_IDS))
+        .withArgs({
+          seed: 'device',
+          method: 'GET',
+          url: `api/v1/txs/${LAST_TX_ID}`,
+          baseURL: 'node',
+          headers: sinon.match.object,
+        }).resolves(transactions([LAST_TX_ID]));
+      const wallet = new Wallet({
+        ...defaultOptions,
+        storage,
+      });
+      await wallet.open(RANDOM_PUBLIC_KEY);
+      await wallet.load();
+      assert.equal(wallet.state, Wallet.STATE_LOADED);
+      assert.equal(wallet.balance.value, 5_622187809000n);
+      mock.verify();
+    });
+
+    it('should load with invalid lastTxId', async () => {
+      const INITIAL_TX_IDS = [
+        'b973adafe966518e5ef69b69ac2f52048df2273fb220321dc604e75b5f9a3678',
+        '8f5fb6b4f4c3c5a902e4ca42a7f4c4f0bdb9d61d3634ab5b46a6217f1b8b04ad',
+        'cc792ff7e5616ca6af4a1f0d520a9d7726cc486af44d13e3a26dbbf384253931',
+      ];
+      const LAST_TX_ID = '939fc6c6f172e4724e16e47ad08d9900d0e873a0d6fb969c63c86d2af1b27402';
+      const storage = new Storage([[
+        'txIds', INITIAL_TX_IDS,
+      ], [
+        'keyImages', INITIAL_KEY_IMAGES,
+      ], [
+        'createdAt', Date.now(),
+      ], [
+        'lastTxId', LAST_TX_ID,
+      ]]);
+      const mock = sinon.mock(storage);
+      mock.expects('set').withArgs('balance', '7123456789000').once();
+      mock.expects('set').withArgs('txIds', INITIAL_TX_IDS).once();
+      sinon.stub(defaultOptions, 'request')
+        .withArgs({
+          seed: 'device',
+          method: 'GET',
+          url: `api/v1/txs/${INITIAL_TX_IDS.join(',')}`,
+          baseURL: 'node',
+          headers: sinon.match.object,
+        }).resolves(transactions(INITIAL_TX_IDS))
+        .withArgs({
+          seed: 'device',
+          method: 'GET',
+          url: `api/v1/txs/${LAST_TX_ID}`,
+          baseURL: 'node',
+          headers: sinon.match.object,
+        }).rejects();
+      const wallet = new Wallet({
+        ...defaultOptions,
+        storage,
+      });
+      await wallet.open(RANDOM_PUBLIC_KEY);
+      await wallet.load();
+      assert.equal(wallet.state, Wallet.STATE_LOADED);
+      assert.equal(wallet.balance.value, 7_123456789000n);
       mock.verify();
     });
   });
@@ -836,6 +936,75 @@ describe('MoneroWallet', () => {
       }, RANDOM_SEED);
       assert.equal(wallet.balance.value, 9_604261829001n);
       assert.equal(id, 'e28464110a36f76bff7e2524a74403936c244a91773d80be3e7fde12efe45b1a');
+    });
+
+    it('should save last tx id on fail', async () => {
+      const storage = sinon.mock(defaultOptions.storage);
+      sinon.stub(defaultOptions, 'request')
+        .withArgs({
+          seed: 'device',
+          method: 'GET',
+          url: `api/v1/txs/${TX_IDS.join(',')}`,
+          baseURL: 'node',
+          headers: sinon.match.object,
+        }).resolves(transactions(TX_IDS))
+        .withArgs({
+          seed: 'device',
+          method: 'GET',
+          url: 'api/v1/txs/e28464110a36f76bff7e2524a74403936c244a91773d80be3e7fde12efe45b1a',
+          baseURL: 'node',
+          headers: sinon.match.object,
+        }).resolves(transactions(['e28464110a36f76bff7e2524a74403936c244a91773d80be3e7fde12efe45b1a']))
+        .withArgs({
+          seed: 'device',
+          method: 'GET',
+          url: 'api/v1/estimatefee',
+          baseURL: 'node',
+          headers: sinon.match.object,
+        }).resolves(FEE)
+        .withArgs({
+          seed: 'device',
+          method: 'GET',
+          url: 'api/v1/outputs/random',
+          params: sinon.match.object,
+          baseURL: 'node',
+          headers: sinon.match.object,
+        }).resolves([])
+        .withArgs({
+          seed: 'device',
+          method: 'POST',
+          url: 'api/v1/tx/send',
+          data: sinon.match.object,
+          baseURL: 'node',
+          headers: sinon.match.object,
+        }).rejects()
+        .withArgs({
+          seed: 'device',
+          method: 'GET',
+          url: 'api/v4/csfee',
+          params: { crypto: 'monero@monero' },
+        }).resolves(CS_FEE);
+      const wallet = new Wallet({
+        ...defaultOptions,
+      });
+      await wallet.open(RANDOM_PUBLIC_KEY);
+      await wallet.load();
+
+      storage.expects('set').withArgs('lastTxId', sinon.match.string).once();
+      storage.expects('set').withArgs('keyImages', KEY_IMAGES).once();
+      storage.expects('save').once();
+
+      await assert.rejects(async () => {
+        await wallet.createTransaction({
+          address: DESTIONATION_ADDRESS,
+          amount: new Amount(4_000000000000n, wallet.crypto.decimals),
+          feeRate: Wallet.FEE_RATE_DEFAULT,
+          price: COIN_PRICE,
+        }, RANDOM_SEED);
+      }, {
+        name: 'Error',
+      });
+      storage.verify();
     });
   });
 
