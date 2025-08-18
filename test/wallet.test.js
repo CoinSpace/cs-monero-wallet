@@ -5,6 +5,7 @@ import fs from 'fs/promises';
 import sinon from 'sinon';
 
 import { Amount } from '@coinspace/cs-common';
+import { RequestError } from '@coinspace/cs-common/errors';
 import Wallet from '@coinspace/cs-monero-wallet';
 
 const RANDOM_SEED = Buffer.from('7363412d7c3e2041e5da425532915d4c003bc601ba0380c7c22ea3d90dc6e1937a575e8aa4dc64a678419b04507adeab65f028c6f2de0dfbd953dc3a0824213d', 'hex');
@@ -334,7 +335,7 @@ describe('MoneroWallet', () => {
           url: `api/v1/txs/${LAST_TX_ID}`,
           baseURL: 'node',
           headers: sinon.match.object,
-        }).rejects();
+        }).rejects(new RequestError({ response: { status: 404, data: 'Not Found' } }));
       const wallet = new Wallet({
         ...defaultOptions,
         storage,

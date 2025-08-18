@@ -26,7 +26,7 @@
     "monerolib": "^1.1.4"
   },
   "peerDependencies": {
-    "@coinspace/cs-common": "^1.1.0"
+    "@coinspace/cs-common": "^1.1.12"
   },
   "devDependencies": {
     "eslint": "^9.0.0",
