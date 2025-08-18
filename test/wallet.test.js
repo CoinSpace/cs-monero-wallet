@@ -1,4 +1,5 @@
 /* eslint-disable max-len */
+import { Buffer } from 'buffer';
 import assert from 'assert/strict';
 import fs from 'fs/promises';
 import sinon from 'sinon';
