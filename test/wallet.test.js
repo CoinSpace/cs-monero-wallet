@@ -335,7 +335,7 @@ describe('MoneroWallet', () => {
           url: `api/v1/txs/${LAST_TX_ID}`,
           baseURL: 'node',
           headers: sinon.match.object,
-        }).rejects(new RequestError({ response: { status: 404, data: 'Not Found' } }));
+        }).resolves([]);
       const wallet = new Wallet({
         ...defaultOptions,
         storage,
