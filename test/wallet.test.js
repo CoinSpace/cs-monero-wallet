@@ -26,16 +26,17 @@ const KEY_IMAGES = {
   '2140aa7572cdfd59232e09f61f615d0766e995c0b5d45bbd96bc03afb59f4e4a-0-83dJgBZoaky1976Hb2ocaEDn4zQDVgexoWKWxcFEaofAZMkR2Z3zETbA2pFaaMjZ6PCBwPiMvhaKTAcpB37z5fgFJLcNJHB': '5f112b2c3031f0e05b7c66ed5e7217da90fb2fa8f960fc4514681156d808955a',
   '2b72fc9d6ae270e52cc5049e9a1db8af8d2dd58e921b96be95adf53ad0e61d36-0-47LuCrMtrkiWk22fh1osk1dfKAuwAtr145syRSJfytJLEKuugyCJc2cAXhqBymbMAahufE3ngnqZ93KV6MMQgD7ZH3MVHwV': '3df305973c3b1d4930fd6c1cc91c6aa8f57e5f793313ede681b53e77f3f78bcf',
 };
-const TX_IDS = [
-  'a0cd9a954719e9de38dd31d59272644a310b0a85ba9618e7ffc102f38909f784',
-  '01fd63eee0e247d63a01b28a36d46c6cb4597ccaa9f72f4f3b95ae4ae15bc815',
-  '94d1ec6fa674d88656eb72a278bf597f0e48720f7e95e463d39e21f5c0d281a1',
-  'b973adafe966518e5ef69b69ac2f52048df2273fb220321dc604e75b5f9a3678',
-  '8f5fb6b4f4c3c5a902e4ca42a7f4c4f0bdb9d61d3634ab5b46a6217f1b8b04ad',
-  'cc792ff7e5616ca6af4a1f0d520a9d7726cc486af44d13e3a26dbbf384253931',
-  '939fc6c6f172e4724e16e47ad08d9900d0e873a0d6fb969c63c86d2af1b27402',
-  'cc007da08e61ff69045161e34f4fc7c5b3c5b6823c013bfcd23f8ef4202aa178',
+const TX_INFOS = [
+  { txId: 'a0cd9a954719e9de38dd31d59272644a310b0a85ba9618e7ffc102f38909f784' },
+  { txId: '01fd63eee0e247d63a01b28a36d46c6cb4597ccaa9f72f4f3b95ae4ae15bc815' },
+  { txId: '94d1ec6fa674d88656eb72a278bf597f0e48720f7e95e463d39e21f5c0d281a1' },
+  { txId: 'b973adafe966518e5ef69b69ac2f52048df2273fb220321dc604e75b5f9a3678' },
+  { txId: '8f5fb6b4f4c3c5a902e4ca42a7f4c4f0bdb9d61d3634ab5b46a6217f1b8b04ad' },
+  { txId: 'cc792ff7e5616ca6af4a1f0d520a9d7726cc486af44d13e3a26dbbf384253931' },
+  { txId: '939fc6c6f172e4724e16e47ad08d9900d0e873a0d6fb969c63c86d2af1b27402' },
+  { txId: 'cc007da08e61ff69045161e34f4fc7c5b3c5b6823c013bfcd23f8ef4202aa178' },
 ];
+const TX_IDS = TX_INFOS.map((txInfo) => txInfo.txId);
 const TX_ID_DOUBLE = '48735956e0ad25b83e6c48cd9d0441f71f1fff3925c3760ab918588832b8759f';
 const CS_FEE = {
   address: CS_FEE_ADDRESS,
@@ -81,7 +82,7 @@ describe('MoneroWallet', () => {
       request(...args) { console.log(args); },
       apiNode: 'node',
       storage: new Storage([[
-        'txIds', TX_IDS,
+        'txInfos', TX_INFOS,
       ], [
         'keyImages', KEY_IMAGES,
       ], [
@@ -204,6 +205,65 @@ describe('MoneroWallet', () => {
       storage.verify();
     });
 
+    it('should load wallet v2', async () => {
+      const defaultOptionsV2 = {
+        ...defaultOptions,
+        storage: new Storage([[
+          'txIds', TX_IDS,
+        ], [
+          'keyImages', KEY_IMAGES,
+        ], [
+          'createdAt', Date.now(),
+        ]]),
+      };
+      sinon.stub(defaultOptionsV2, 'request')
+        .withArgs({
+          seed: 'device',
+          method: 'GET',
+          url: `api/v1/txs/${TX_IDS.join(',')}`,
+          baseURL: 'node',
+          headers: sinon.match.object,
+        }).resolves(transactions(TX_IDS));
+      const storage = sinon.mock(defaultOptionsV2.storage);
+      storage.expects('save').once();
+      const wallet = new Wallet({
+        ...defaultOptionsV2,
+      });
+      await wallet.open(RANDOM_PUBLIC_KEY);
+      await wallet.load();
+      assert.equal(wallet.state, Wallet.STATE_LOADED);
+      assert.equal(wallet.balance.value, 13_622187809001n);
+      storage.verify();
+    });
+
+    it('should load wallet with duplicated & uppercase txId in txInfos', async () => {
+      sinon.stub(defaultOptions, 'request')
+        .withArgs({
+          seed: 'device',
+          method: 'GET',
+          url: `api/v1/txs/${TX_IDS.join(',')}`,
+          baseURL: 'node',
+          headers: sinon.match.object,
+        }).resolves(transactions(TX_IDS));
+      defaultOptions.storage = new Storage([[
+        'txInfos', TX_INFOS.concat(TX_INFOS).concat(TX_INFOS.map((txInfo) => ({ txId: txInfo.txId.toUpperCase() }) )),
+      ], [
+        'keyImages', KEY_IMAGES,
+      ], [
+        'createdAt', Date.now(),
+      ]]);
+      const storage = sinon.mock(defaultOptions.storage);
+      storage.expects('save').once();
+      const wallet = new Wallet({
+        ...defaultOptions,
+      });
+      await wallet.open(RANDOM_PUBLIC_KEY);
+      await wallet.load();
+      assert.equal(wallet.state, Wallet.STATE_LOADED);
+      assert.equal(wallet.balance.value, 13_622187809001n);
+      storage.verify();
+    });
+
     it('should set STATE_ERROR on error', async () => {
       sinon.stub(defaultOptions, 'request')
         .withArgs({
@@ -223,58 +283,30 @@ describe('MoneroWallet', () => {
       assert.equal(wallet.state, Wallet.STATE_ERROR);
     });
 
-    it('should fix doubled txs', async () => {
-      sinon.stub(defaultOptions, 'request')
-        .withArgs({
-          seed: 'device',
-          method: 'GET',
-          url: `api/v1/txs/${TX_IDS.join(',')}`,
-          baseURL: 'node',
-          headers: sinon.match.object,
-        }).resolves(transactions(TX_IDS));
-      const storage = new Storage([[
-        'txIds', [...TX_IDS, 'CC007da08e61ff69045161e34f4fc7c5b3c5b6823c013bfcd23f8ef4202aa178'],
-      ], [
-        'keyImages', KEY_IMAGES,
-      ]]);
-      const mock = sinon.mock(storage);
-      mock.expects('set').withArgs('balance', '13622187809001').once();
-      mock.expects('set').withArgs('createdAt', sinon.match.number).once();
-      mock.expects('set').withArgs('txIds', TX_IDS).once();
-      mock.expects('save').once();
-      const wallet = new Wallet({
-        ...defaultOptions,
-        storage,
-      });
-      await wallet.open(RANDOM_PUBLIC_KEY);
-      await wallet.load();
-      assert.equal(wallet.state, Wallet.STATE_LOADED);
-      assert.equal(wallet.balance.value, 13_622187809001n);
-      mock.verify();
-    });
-
-    it('should load with valid lastTxId', async () => {
-      const INITIAL_TX_IDS = [
-        'b973adafe966518e5ef69b69ac2f52048df2273fb220321dc604e75b5f9a3678',
-        '8f5fb6b4f4c3c5a902e4ca42a7f4c4f0bdb9d61d3634ab5b46a6217f1b8b04ad',
-        'cc792ff7e5616ca6af4a1f0d520a9d7726cc486af44d13e3a26dbbf384253931',
+    it('should load with valid lastTxInfo', async () => {
+      const INITIAL_TX_INFOS = [
+        { txId: 'b973adafe966518e5ef69b69ac2f52048df2273fb220321dc604e75b5f9a3678' },
+        { txId: '8f5fb6b4f4c3c5a902e4ca42a7f4c4f0bdb9d61d3634ab5b46a6217f1b8b04ad' },
+        { txId: 'cc792ff7e5616ca6af4a1f0d520a9d7726cc486af44d13e3a26dbbf384253931' },
       ];
-      const LAST_TX_ID = '939fc6c6f172e4724e16e47ad08d9900d0e873a0d6fb969c63c86d2af1b27402';
+      const INITIAL_TX_IDS = INITIAL_TX_INFOS.map((item) => item.txId);
+      const LAST_TX_INFO = { txId: '939fc6c6f172e4724e16e47ad08d9900d0e873a0d6fb969c63c86d2af1b27402' };
+      const LAST_TX_ID = LAST_TX_INFO.txId;
       const storage = new Storage([[
-        'txIds', INITIAL_TX_IDS,
+        'txInfos', INITIAL_TX_INFOS,
       ], [
         'keyImages', KEY_IMAGES,
       ], [
         'createdAt', Date.now(),
       ], [
-        'lastTxId', LAST_TX_ID,
+        'lastTxInfo', LAST_TX_INFO,
       ]]);
       const mock = sinon.mock(storage);
       mock.expects('set').withArgs('balance', '7123456789000').once();
       mock.expects('set').withArgs('balance', '5622187809000').once();
       mock.expects('set').withArgs('keyImages', KEY_IMAGES).once();
-      mock.expects('set').withArgs('txIds', INITIAL_TX_IDS).once();
-      mock.expects('set').withArgs('txIds', [...INITIAL_TX_IDS, LAST_TX_ID]).once();
+      mock.expects('set').withArgs('txInfos', INITIAL_TX_INFOS).once();
+      mock.expects('set').withArgs('txInfos', [...INITIAL_TX_INFOS, LAST_TX_INFO]).once();
       sinon.stub(defaultOptions, 'request')
         .withArgs({
           seed: 'device',
@@ -301,25 +333,27 @@ describe('MoneroWallet', () => {
       mock.verify();
     });
 
-    it('should load with invalid lastTxId', async () => {
-      const INITIAL_TX_IDS = [
-        'b973adafe966518e5ef69b69ac2f52048df2273fb220321dc604e75b5f9a3678',
-        '8f5fb6b4f4c3c5a902e4ca42a7f4c4f0bdb9d61d3634ab5b46a6217f1b8b04ad',
-        'cc792ff7e5616ca6af4a1f0d520a9d7726cc486af44d13e3a26dbbf384253931',
+    it('should load with invalid lastTxInfo', async () => {
+      const INITIAL_TX_INFOS = [
+        { txId: 'b973adafe966518e5ef69b69ac2f52048df2273fb220321dc604e75b5f9a3678' },
+        { txId: '8f5fb6b4f4c3c5a902e4ca42a7f4c4f0bdb9d61d3634ab5b46a6217f1b8b04ad' },
+        { txId: 'cc792ff7e5616ca6af4a1f0d520a9d7726cc486af44d13e3a26dbbf384253931' },
       ];
-      const LAST_TX_ID = '939fc6c6f172e4724e16e47ad08d9900d0e873a0d6fb969c63c86d2af1b27402';
+      const INITIAL_TX_IDS = INITIAL_TX_INFOS.map((item) => item.txId);
+      const LAST_TX_INFO = { txId: '939fc6c6f172e4724e16e47ad08d9900d0e873a0d6fb969c63c86d2af1b27402' };
+      const LAST_TX_ID = LAST_TX_INFO.txId;
       const storage = new Storage([[
-        'txIds', INITIAL_TX_IDS,
+        'txInfos', INITIAL_TX_INFOS,
       ], [
         'keyImages', INITIAL_KEY_IMAGES,
       ], [
         'createdAt', Date.now(),
       ], [
-        'lastTxId', LAST_TX_ID,
+        'lastTxInfo', LAST_TX_INFO,
       ]]);
       const mock = sinon.mock(storage);
       mock.expects('set').withArgs('balance', '7123456789000').once();
-      mock.expects('set').withArgs('txIds', INITIAL_TX_IDS).once();
+      mock.expects('set').withArgs('txInfos', INITIAL_TX_INFOS).once();
       sinon.stub(defaultOptions, 'request')
         .withArgs({
           seed: 'device',
@@ -879,6 +913,7 @@ describe('MoneroWallet', () => {
 
   describe('createTransaction', () => {
     it('should create valid transaction', async () => {
+      const txId = 'e28464110a36f76bff7e2524a74403936c244a91773d80be3e7fde12efe45b1a';
       sinon.stub(defaultOptions, 'request')
         .withArgs({
           seed: 'device',
@@ -890,10 +925,10 @@ describe('MoneroWallet', () => {
         .withArgs({
           seed: 'device',
           method: 'GET',
-          url: 'api/v1/txs/e28464110a36f76bff7e2524a74403936c244a91773d80be3e7fde12efe45b1a',
+          url: `api/v1/txs/${txId}`,
           baseURL: 'node',
           headers: sinon.match.object,
-        }).resolves(transactions(['e28464110a36f76bff7e2524a74403936c244a91773d80be3e7fde12efe45b1a']))
+        }).resolves(transactions([txId]))
         .withArgs({
           seed: 'device',
           method: 'GET',
@@ -916,7 +951,7 @@ describe('MoneroWallet', () => {
           data: sinon.match.object,
           baseURL: 'node',
           headers: sinon.match.object,
-        }).resolves({ txId: 'e28464110a36f76bff7e2524a74403936c244a91773d80be3e7fde12efe45b1a' })
+        }).resolves({ txId })
         .withArgs({
           seed: 'device',
           method: 'GET',
@@ -936,7 +971,17 @@ describe('MoneroWallet', () => {
         price: COIN_PRICE,
       }, RANDOM_SEED);
       assert.equal(wallet.balance.value, 9_604261829001n);
-      assert.equal(id, 'e28464110a36f76bff7e2524a74403936c244a91773d80be3e7fde12efe45b1a');
+      assert.equal(id, txId);
+
+      const tx = await wallet.loadTransaction(txId);
+      assert.equal(tx.id, txId);
+      assert.equal(tx.to, DESTIONATION_ADDRESS);
+      assert.equal(typeof tx.meta.txKey, 'string');
+      assert.equal(tx.meta.txKey.length, 64);
+
+      const txInfo = wallet.storage.get('txInfos').find((item) => item.txId === txId);
+      assert.equal(txInfo.meta.txKey, tx.meta.txKey);
+      assert.equal(txInfo.meta.to, tx.to);
     });
 
     it('should save last tx id on fail', async () => {
@@ -991,7 +1036,7 @@ describe('MoneroWallet', () => {
       await wallet.open(RANDOM_PUBLIC_KEY);
       await wallet.load();
 
-      storage.expects('set').withArgs('lastTxId', sinon.match.string).once();
+      storage.expects('set').withArgs('lastTxInfo', sinon.match.object).once();
       storage.expects('set').withArgs('keyImages', KEY_IMAGES).once();
       storage.expects('save').once();
 
