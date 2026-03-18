@@ -799,6 +799,22 @@ describe('MoneroWallet', () => {
     });
   });
 
+  describe('hasTransaction', () => {
+    it('should return true', () => {
+      const wallet = new Wallet({
+        ...defaultOptions,
+      });
+      assert.ok(wallet.hasTransaction('a0cd9a954719e9de38dd31d59272644a310b0a85ba9618e7ffc102f38909f784'));
+    });
+
+    it('should return false', () => {
+      const wallet = new Wallet({
+        ...defaultOptions,
+      });
+      assert.ok(!wallet.hasTransaction('a0cd9a954719e9de38dd31d59272644a310b0a85ba9618e7ffc102f38909f785'));
+    });
+  });
+
   describe('estimateMaxAmount', () => {
     let wallet;
     beforeEach(async () => {
